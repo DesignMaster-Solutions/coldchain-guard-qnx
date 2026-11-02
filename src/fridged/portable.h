@@ -2,6 +2,11 @@
 #define CCG_PORTABLE_H
 #include "alarm.h"
 #include <stdio.h>
+#define FRIDGE_PRIORITY_DEFAULT 20
+#define FRIDGE_PRIORITY_MIN 1
+#define FRIDGE_PRIORITY_MAX 63
+/* Strict unsigned decimal in an inclusive range; output unchanged on failure. */
+bool fridge_uint(const char *text, unsigned minimum, unsigned maximum, unsigned *out);
 #define FRIDGE_TEXT_SIZE 320
 #define SCENARIO_CAPACITY 4096
 

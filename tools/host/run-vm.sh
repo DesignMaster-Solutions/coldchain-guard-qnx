@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Boot the image made by build-vm.sh with QEMU on the host (TCG, no network), console to a log, and
-# wait for both boot-time test lines. Exits 0 only if core and M2 pass.
+# wait for all three boot-time test lines. Exits 0 only if core, M2 and M3 pass.
 #   tools/host/run-vm.sh <vm dir> [timeout seconds]
 # Mirrors the x86_64 branch of mkqnximage's qemu/runimage, minus the bridge network.
 set -euo pipefail
@@ -14,7 +14,7 @@ qemu-system-x86_64 -smp 2 -cpu max -m 1G -no-reboot -display none -monitor none 
 pid=$!
 trap 'kill "$pid" 2>/dev/null || true' EXIT
 for ((i = 0; i < T; i++)); do
-  grep -q "coldchain: m2" "$LOG" 2>/dev/null && break
+  grep -q "coldchain: m3" "$LOG" 2>/dev/null && break
   kill -0 "$pid" 2>/dev/null || break
   sleep 1
 done
@@ -22,3 +22,4 @@ sleep 2 # let the last lines reach the log
 tr -d '\r' < "$LOG" | grep -v '^\s*$' | tail -40
 grep -q "coldchain: core tests rc=0" "$LOG"
 grep -q "coldchain: m2 rc=0" "$LOG"
+grep -q "coldchain: m3 rc=0" "$LOG"

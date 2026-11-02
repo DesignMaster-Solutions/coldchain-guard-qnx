@@ -89,3 +89,19 @@ int fridge_format(char *out, size_t capacity, const alarm_state *a)
         a->config.low_mc, a->config.high_mc, a->config.hysteresis_mc, a->now_ms, a->last_valid_ms);
     return n < 0 || (size_t)n >= capacity ? -1 : n;
 }
+
+/* Bounds are application policy, independent of the host scheduler. */
+bool fridge_uint(const char *text, unsigned minimum, unsigned maximum, unsigned *out)
+{
+    if (!text || !*text || !out || minimum > maximum) return false;
+    unsigned value = 0;
+    for (const char *p = text; *p; ++p) {
+        if (*p < '0' || *p > '9') return false;
+        unsigned digit = (unsigned)(*p - '0');
+        if (digit > maximum || value > (maximum - digit) / 10) return false;
+        value = value * 10 + digit;
+    }
+    if (value < minimum) return false;
+    *out = value;
+    return true;
+}

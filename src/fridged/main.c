@@ -12,6 +12,8 @@ struct fridge_ocb;
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <pthread.h>
+#include <sched.h>
 #include "portable.h"
 #include "audit.h"
 
@@ -89,20 +91,29 @@ static int fridge_write(resmgr_context_t *ctp, io_write_t *msg, struct fridge_oc
 }
 int main(int argc, char **argv)
 {
-    const char *scenario = NULL, *log_path = NULL; unsigned long period = 1000;
+    const char *scenario = NULL, *log_path = NULL; unsigned period = 1000, priority = FRIDGE_PRIORITY_DEFAULT;
+    alarm_config config = alarm_defaults();
     int opt;
-    while ((opt = getopt(argc,argv,"s:p:l:")) != -1) {
+    while ((opt = getopt(argc,argv,"s:p:l:P:g:e:")) != -1) {
         if (opt == 's') scenario = optarg;
         else if (opt == 'l') log_path = optarg;
         else if (opt == 'p') {
-            char *end; errno = 0;
-            period = strtoul(optarg,&end,10);
-            if (errno || *optarg < '0' || *optarg > '9' || *end || !period || period > 3600000) return EXIT_FAILURE;
+            if (!fridge_uint(optarg,1,3600000,&period)) return EXIT_FAILURE;
+        } else if (opt == 'P') {
+            if (!fridge_uint(optarg,FRIDGE_PRIORITY_MIN,FRIDGE_PRIORITY_MAX,&priority)) return EXIT_FAILURE;
+        } else if (opt == 'g' || opt == 'e') {
+            unsigned seconds;
+            if (!fridge_uint(optarg,1,86400,&seconds)) return EXIT_FAILURE;
+            if (opt == 'g') config.grace_s = seconds;
+            else config.esc_s = seconds;
         } else return EXIT_FAILURE;
     }
     if (!scenario || !log_path || optind != argc) {
-        fprintf(stderr,"usage: fridged -s scenario.csv -p period_ms -l NEW-audit.bin\n"); return EXIT_FAILURE;
+        fprintf(stderr,"usage: fridged -s scenario.csv -p period_ms -l NEW-audit.bin [-P priority] [-g grace_s] [-e escalation_s]\n"); return EXIT_FAILURE;
     }
+    struct sched_param scheduling = { .sched_priority = (int)priority };
+    int error = pthread_setschedparam(pthread_self(),SCHED_FIFO,&scheduling);
+    if (error) { errno = error; fatal("sampler scheduling"); }
     FILE *f = fopen(scenario,"r"); if (!f) fatal("scenario open");
     bool loaded = scenario_load(f,rows,SCENARIO_CAPACITY,&row_count);
     if (fclose(f) || !loaded) { fprintf(stderr,"invalid scenario\n"); return EXIT_FAILURE; }
@@ -111,11 +122,12 @@ int main(int argc, char **argv)
     if (fd == -1) fatal("audit create (requires new path)");
     log_file = fdopen(fd,"wb"); if (!log_file) fatal("audit fdopen");
     audit_init(&chain);
-    alarm_config config = alarm_defaults();
     start_ms = now_ms();
     if (!alarm_init(&state,&config,0)) return EXIT_FAILURE;
     sample();
-    dispatch_t *dpp = dispatch_create(); if (!dpp) fatal("dispatch_create");
+    int chid = ChannelCreate(_NTO_CHF_FIXED_PRIORITY | _NTO_CHF_UNBLOCK | _NTO_CHF_DISCONNECT);
+    if (chid == -1) fatal("ChannelCreate");
+    dispatch_t *dpp = dispatch_create_channel(chid,0); if (!dpp) fatal("dispatch_create");
     resmgr_connect_funcs_t connect_funcs; resmgr_io_funcs_t io_funcs;
     iofunc_func_init(_RESMGR_CONNECT_NFUNCS,&connect_funcs,_RESMGR_IO_NFUNCS,&io_funcs);
     io_funcs.read = fridge_read; io_funcs.read64 = fridge_read;
@@ -130,7 +142,7 @@ int main(int argc, char **argv)
     if (code == -1) fatal("pulse_attach");
     int coid = message_connect(dpp,MSG_FLAG_SIDE_CHANNEL); if (coid == -1) fatal("message_connect");
     struct sigevent event;
-    SIGEV_PULSE_INIT(&event,coid,SIGEV_PULSE_PRIO_INHERIT,code,0);
+    SIGEV_PULSE_INIT(&event,coid,(int)priority,code,0);
     timer_t timer;
     if (timer_create(CLOCK_MONOTONIC,&event,&timer) == -1) fatal("timer_create");
     struct itimerspec interval = { .it_value = {period / 1000,(period % 1000) * 1000000} };

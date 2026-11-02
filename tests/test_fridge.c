@@ -10,6 +10,21 @@ static bool load(const char *text, scenario_row *rows, size_t cap, size_t *n)
 }
 int main(void)
 {
+    unsigned priority = FRIDGE_PRIORITY_DEFAULT;
+    assert(fridge_uint("1",FRIDGE_PRIORITY_MIN,FRIDGE_PRIORITY_MAX,&priority) && priority == 1);
+    assert(fridge_uint("63",FRIDGE_PRIORITY_MIN,FRIDGE_PRIORITY_MAX,&priority) && priority == 63);
+    const char *invalid_priority[] = {"0", "64", "-1", "+20", " 20", "20 ", "20x", "", "42949672960"};
+    for (size_t i = 0; i < sizeof(invalid_priority)/sizeof(*invalid_priority); ++i) {
+        assert(!fridge_uint(invalid_priority[i],FRIDGE_PRIORITY_MIN,FRIDGE_PRIORITY_MAX,&priority));
+        assert(priority == 63);
+    }
+    assert(!fridge_uint(NULL,1,63,&priority));
+    assert(!fridge_uint("20",1,63,NULL));
+    assert(!fridge_uint("20",63,1,&priority));
+    unsigned seconds = 0;
+    assert(fridge_uint("86400",1,86400,&seconds) && seconds == 86400);
+    assert(!fridge_uint("86401",1,86400,&seconds) && seconds == 86400);
+    assert(!fridge_uint("0",1,86400,&seconds));
     alarm_config c = alarm_defaults();
     const char *good = "high=8000 low=2000 hyst=500\n";
     assert(fridge_command(good, strlen(good), &c));
@@ -47,6 +62,6 @@ int main(void)
     assert(fridge_format(buf,4,&a) == -1);
     assert(alarm_step(&a,120123,0,false,&r));
     assert(fridge_format(buf,sizeof(buf),&a)>0 && strstr(buf,"valid=0 alarm=1"));
-    puts("PASS fridge: strict commands, atomic validation, CSV boundaries, invalid sensor and read format");
+    puts("PASS fridge: option bounds, strict commands, atomic validation, CSV boundaries, invalid sensor and read format");
     return 0;
 }
