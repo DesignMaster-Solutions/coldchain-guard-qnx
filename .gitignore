@@ -9,3 +9,4 @@ qnx800/
 *.qcow2
 output/
 .DS_Store
+*.run
