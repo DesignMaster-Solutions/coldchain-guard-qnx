@@ -6,9 +6,10 @@ HEADERS = src/core/alarm.h src/core/audit.h src/core/sha256.h
 
 .PHONY: test
 
-test: build/test_core build/test_fridge
+test: build/test_core build/test_fridge build/test_forecast
 	./build/test_core
 	./build/test_fridge
+	./build/test_forecast
 
 build/test_core: tests/test_core.c $(CORE) $(HEADERS) Makefile
 	mkdir -p build
@@ -17,3 +18,7 @@ build/test_core: tests/test_core.c $(CORE) $(HEADERS) Makefile
 build/test_fridge: tests/test_fridge.c src/fridged/portable.c src/fridged/portable.h $(CORE) $(HEADERS) Makefile
 	mkdir -p build
 	$(CC) $(CFLAGS) $(SANITIZERS) -Isrc/core -Isrc/fridged tests/test_fridge.c src/fridged/portable.c $(CORE) -o $@
+
+build/test_forecast: tests/test_forecast.c src/core/forecast.c src/core/forecast.h Makefile
+	mkdir -p build
+	$(CC) $(CFLAGS) $(SANITIZERS) -Isrc/core tests/test_forecast.c src/core/forecast.c -o $@
