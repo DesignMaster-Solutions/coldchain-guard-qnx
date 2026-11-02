@@ -40,7 +40,7 @@ bool fridge_command(const char *text, size_t length, alarm_config *config)
         seen |= bit;
         if (*p && *p != ' ' && *p != '\n' && *p != '\t' && *p != '\r') return false;
     }
-    alarm checked;
+    alarm_state checked;
     if (seen != 7 || !alarm_init(&checked, &next, 0)) return false;
     *config = next;
     return true;
@@ -80,7 +80,7 @@ scenario_row scenario_sample(const scenario_row *rows, size_t count, uint64_t t_
     return row;
 }
 
-int fridge_format(char *out, size_t capacity, const alarm *a)
+int fridge_format(char *out, size_t capacity, const alarm_state *a)
 {
     int n = snprintf(out, capacity,
         "temp_mc=%" PRId32 " valid=%u alarm=%u level=%u low=%" PRId32

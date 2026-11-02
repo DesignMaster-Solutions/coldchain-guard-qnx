@@ -11,11 +11,31 @@ mkdir -p /vm/bin /vm/local/snippets
 qcc -Vgcc_nto"$ARCH" -std=c11 -Wall -Wextra -Werror -O2 -I/work/src/core \
   /work/tests/test_core.c /work/src/core/alarm.c /work/src/core/audit.c /work/src/core/sha256.c \
   -o /vm/bin/test_core
-file /vm/bin/test_core
+qcc -Vgcc_nto"$ARCH" -std=c11 -Wall -Wextra -Werror -O2 -D_QNX_SOURCE -I/work/src/core -I/work/src/fridged \
+  /work/src/fridged/main.c /work/src/fridged/portable.c /work/src/core/*.c -o /vm/bin/fridged
+qcc -Vgcc_nto"$ARCH" -std=c11 -Wall -Wextra -Werror -O2 -I/work/src/core -I/work/src/fridged \
+  /work/tests/test_fridge_target.c /work/src/fridged/portable.c /work/src/core/*.c -o /vm/bin/test_fridge_target
+file /vm/bin/test_core /vm/bin/fridged /vm/bin/test_fridge_target
 echo "[perms=555] bin/coldchain_test_core=/vm/bin/test_core" > /vm/local/snippets/system_files.custom
+cat >> /vm/local/snippets/system_files.custom <<'FILES'
+[perms=555] bin/fridged=/vm/bin/fridged
+[perms=555] bin/coldchain_test_fridge=/vm/bin/test_fridge_target
+[perms=444] etc/m2-scenario.csv=/work/tests/m2-scenario.csv
+[perms=444] etc/door-ajar.csv=/work/scenarios/door-ajar.csv
+[perms=444] etc/power-loss.csv=/work/scenarios/power-loss.csv
+[perms=444] etc/compressor-failure.csv=/work/scenarios/compressor-failure.csv
+FILES
 cat > /vm/local/snippets/post_start.custom <<'SH'
 echo "coldchain: M0 on $(uname -a)"
 if (cd /tmp && /system/bin/coldchain_test_core); then echo "coldchain: core tests rc=0"; else echo "coldchain: core tests FAILED"; fi
+/system/bin/fridged -s /system/etc/m2-scenario.csv -p 100 -l /tmp/m2-audit.bin &
+fridge_pid=$!
+if waitfor /dev/fridge0 20 && cat /dev/fridge0 && /system/bin/coldchain_test_fridge /tmp/m2-audit.bin && cat /dev/fridge0; then
+    echo "coldchain: m2 rc=0"
+else
+    echo "coldchain: m2 FAILED"
+fi
+kill "$fridge_pid"
 SH
 cd /vm
 mkqnximage --type=qemu --arch="$ARCH" --noprompt --ssh-ident=none --hostname=coldchain --build

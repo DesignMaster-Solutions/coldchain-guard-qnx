@@ -40,7 +40,7 @@ int main(void)
         FILE *f = fopen(paths[i], "r"); assert(f);
         scenario_row all[SCENARIO_CAPACITY]; assert(scenario_load(f,all,SCENARIO_CAPACITY,&n)); fclose(f);
     }
-    alarm a; assert(alarm_init(&a,&c,0)); alarm_result r;
+    alarm_state a; assert(alarm_init(&a,&c,0)); alarm_result r;
     assert(alarm_step(&a,123,5000,true,&r)); char buf[FRIDGE_TEXT_SIZE];
     assert(fridge_format(buf,sizeof(buf),&a) > 0);
     assert(!strcmp(buf,"temp_mc=5000 valid=1 alarm=0 level=0 low=2000 high=8000 hyst=500 sample_ms=123 last_valid_ms=123\n"));

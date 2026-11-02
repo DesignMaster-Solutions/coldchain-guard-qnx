@@ -9,15 +9,15 @@
 
 #define MINUTE UINT64_C(60000)
 
-static alarm fresh(void)
+static alarm_state fresh(void)
 {
-    alarm a;
+    alarm_state a;
     alarm_config c = alarm_defaults();
     assert(alarm_init(&a, &c, 0));
     return a;
 }
 
-static alarm_result step(alarm *a, uint64_t t, int32_t temp, bool valid)
+static alarm_result step(alarm_state *a, uint64_t t, int32_t temp, bool valid)
 {
     alarm_result r;
     assert(alarm_step(a, t, temp, valid, &r));
@@ -69,7 +69,7 @@ static void test_sha(void)
 
 static void test_door(void)
 {
-    alarm a = fresh();
+    alarm_state a = fresh();
     step(&a, 0, 9000, true);
     alarm_result r = step(&a, 3 * MINUTE, 5000, true);
     assert(r.actions == 0 && !a.active && !a.excursion);
@@ -94,7 +94,7 @@ static void test_door(void)
 
 static void test_ack(void)
 {
-    alarm a = fresh();
+    alarm_state a = fresh();
     alarm_result r;
     step(&a, 0, 9000, true);
     step(&a, 15 * MINUTE, 9000, true);
@@ -119,7 +119,7 @@ static void test_ack(void)
 
 static void test_power_and_recovery(void)
 {
-    alarm a = fresh();
+    alarm_state a = fresh();
     for (uint64_t m = 0; m <= 30; ++m) {
         alarm_result r = step(&a, m * MINUTE, 5000 + (int32_t)m * 250, true);
         assert(r.actions == (m == 28 ? ALARM_LOCAL : 0u));
@@ -138,7 +138,7 @@ static void test_power_and_recovery(void)
 
 static void test_hysteresis(void)
 {
-    alarm a = fresh();
+    alarm_state a = fresh();
     step(&a, 0, 8100, true);
     for (uint64_t m = 1; m <= 30; ++m) {
         alarm_result r = step(&a, m * MINUTE, m % 2 ? 7900 : 8100, true);
@@ -164,7 +164,7 @@ static void test_hysteresis(void)
 
 static void test_sensor(void)
 {
-    alarm a = fresh();
+    alarm_state a = fresh();
     alarm_result r = step(&a, 119999, INT32_MIN, false);
     assert(!a.active && r.actions == 0);
     r = step(&a, 120000, INT32_MIN, false);
@@ -195,7 +195,7 @@ static void test_sensor(void)
 
 static void test_edges(void)
 {
-    alarm a = fresh(), saved;
+    alarm_state a = fresh(), saved;
     alarm_result r;
     alarm_config c = alarm_defaults();
     saved = a;
@@ -248,7 +248,7 @@ static void test_audit(void)
     assert(audit_verify(records, 2 * AUDIT_RECORD_SIZE, &bad, &verified) == AUDIT_OK);
     chain = verified;
     assert(audit_append(&chain, &records[2], 200, AUDIT_GAP, 0, "process restarted; interval unknown"));
-    alarm a = fresh();
+    alarm_state a = fresh();
     step(&a, 0, 9000, true);
     alarm_result r = step(&a, 3 * MINUTE, 5000, true);
     assert(audit_append_event(&chain, &records[3], event(&r, ALARM_RECOVERY)));

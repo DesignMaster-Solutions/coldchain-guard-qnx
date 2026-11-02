@@ -47,11 +47,11 @@ typedef struct {
     unsigned level;
     bool temperature_valid, excursion, outside, temperature_alarm, sensor_alarm;
     bool active, acknowledged;
-} alarm;
+} alarm_state;
 
 alarm_config alarm_defaults(void);
 /* Invalid config/time returns false without changing state. */
-bool alarm_init(alarm *a, const alarm_config *config, uint64_t t_ms);
+bool alarm_init(alarm_state *a, const alarm_config *config, uint64_t t_ms);
 /* Nondecreasing timestamps required, including ack. Call periodically even
  * during sensor loss, with valid=false. Deadlines are emitted on the first
  * call at/after expiry (not backdated); a late call emits all due levels.
@@ -61,10 +61,10 @@ bool alarm_init(alarm *a, const alarm_config *config, uint64_t t_ms);
  * the hysteresis margin and missing readings while an excursion is open; extrema use
  * valid samples only. total_out_ms spans all such excursions since init.
  * Sensor timeout runs from init or the last valid sample. */
-bool alarm_step(alarm *a, uint64_t t_ms, int32_t temperature_mc,
+bool alarm_step(alarm_state *a, uint64_t t_ms, int32_t temperature_mc,
                 bool valid, alarm_result *result);
 /* Ack suppresses the shared ladder, not either fault. Re-arming starts a
  * fresh ladder. who must fit, including NUL; inactive/duplicate ack fails. */
-bool alarm_ack(alarm *a, uint64_t t_ms, const char *who, alarm_result *result);
+bool alarm_ack(alarm_state *a, uint64_t t_ms, const char *who, alarm_result *result);
 
 #endif

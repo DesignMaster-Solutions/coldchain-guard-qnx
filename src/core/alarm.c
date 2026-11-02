@@ -13,23 +13,23 @@ alarm_config alarm_defaults(void)
     return (alarm_config){2000, 8000, 300, 900, 120, 600, 3600};
 }
 
-bool alarm_init(alarm *a, const alarm_config *c, uint64_t t_ms)
+bool alarm_init(alarm_state *a, const alarm_config *c, uint64_t t_ms)
 {
     if (!a || !c || c->low_mc >= c->high_mc || c->hysteresis_mc < 0 ||
         (int64_t)c->hysteresis_mc * 2 > (int64_t)c->high_mc - c->low_mc ||
         !c->sensor_s || !c->esc_s || !c->re_alarm_s) return false;
-    *a = (alarm){ .config = *c, .now_ms = t_ms, .last_valid_ms = t_ms };
+    *a = (alarm_state){ .config = *c, .now_ms = t_ms, .last_valid_ms = t_ms };
     return true;
 }
 
-static void advance(alarm *a, uint64_t t_ms)
+static void advance(alarm_state *a, uint64_t t_ms)
 {
     /* Disjoint intervals within a non-wrapping uint64 clock cannot overflow. */
     if (a->excursion) a->total_out_ms += t_ms - a->now_ms;
     a->now_ms = t_ms;
 }
 
-static alarm_event *emit(const alarm *a, alarm_result *r, enum alarm_event_type type)
+static alarm_event *emit(const alarm_state *a, alarm_result *r, enum alarm_event_type type)
 {
     /* At most 7 events per step: two transitions, two fault onsets,
      * one ladder start, and two escalation levels. No allocation or dropping. */
@@ -45,7 +45,7 @@ static alarm_event *emit(const alarm *a, alarm_result *r, enum alarm_event_type 
     return e;
 }
 
-bool alarm_step(alarm *a, uint64_t t_ms, int32_t temp, bool valid, alarm_result *r)
+bool alarm_step(alarm_state *a, uint64_t t_ms, int32_t temp, bool valid, alarm_result *r)
 {
     if (!a || !r) return false;
     *r = (alarm_result){0};
@@ -112,7 +112,7 @@ bool alarm_step(alarm *a, uint64_t t_ms, int32_t temp, bool valid, alarm_result 
     return true;
 }
 
-bool alarm_ack(alarm *a, uint64_t t_ms, const char *who, alarm_result *r)
+bool alarm_ack(alarm_state *a, uint64_t t_ms, const char *who, alarm_result *r)
 {
     if (!a || !r) return false;
     *r = (alarm_result){0};
