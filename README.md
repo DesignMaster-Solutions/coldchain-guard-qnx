@@ -2,7 +2,15 @@
 
 A vaccine-fridge guard for small clinics, built to run on QNX 8.0. It watches a fridge that must stay between 2 °C and 8 °C, raises an alarm on a fixed deadline when the temperature drifts out of range, escalates until a person acknowledges it, comes back on its own if it crashes, and keeps a tamper-evident log that an inspector can verify.
 
-**Status:** started on November 2, 2026 for the QNX Global Hackathon (category: Robotics & Medical). Nothing runs yet: this README is the scope, and [docs/build-plan.md](docs/build-plan.md) lists the milestones. Each milestone lands here as a commit.
+**Status (November 2, 2026):** M1 portable C11 core implemented and tested on the host with `make test` (AddressSanitizer and UndefinedBehaviorSanitizer). Includes the alarm state machine, acknowledgement/re-alarm ladder, excursion recovery data, and SHA-256 audit chain. QNX `qcc` compilation and target execution are pending SDP availability. Built for the QNX Global Hackathon (category: Robotics & Medical); see [docs/build-plan.md](docs/build-plan.md) for milestones and verification limits.
+
+## Structure
+
+- `src/core/alarm.h/.c`: caller-owned alarm state, actions and audit events; no allocation or I/O.
+- `src/core/audit.h/.c`: fixed-format hash-chained records, buffer/file verification and restart gaps.
+- `src/core/sha256.h/.c`: standalone streaming SHA-256 implementation.
+- `tests/test_core.c`: simulated-time scenarios, FIPS vectors and tamper detection.
+- `Makefile`: `make test` builds with host `cc`, C11, strict warnings and sanitizers.
 
 ## Why
 
