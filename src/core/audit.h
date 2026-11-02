@@ -22,6 +22,8 @@ typedef struct { uint64_t seq; uint8_t hash[32]; } audit_chain;
 enum audit_status { AUDIT_OK, AUDIT_BROKEN, AUDIT_IO_ERROR };
 
 void audit_init(audit_chain *chain);
+/* Incremental verification from an initialized chain. Failure leaves it unchanged. */
+bool audit_verify_next(audit_chain *chain, const uint8_t record[AUDIT_RECORD_SIZE]);
 bool audit_append(audit_chain *chain, audit_record *record, uint64_t t_ms,
                   uint32_t type, int32_t temperature_mc, const char *detail);
 bool audit_append_event(audit_chain *chain, audit_record *record,

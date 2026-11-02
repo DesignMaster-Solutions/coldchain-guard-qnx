@@ -86,9 +86,9 @@ static bool events(bool *local, bool *escalated)
 {
     FILE *f = fopen("/tmp/m3-audit.bin","rb");
     if (!f) return true;
-    audit_record records[32];
-    size_t n = fread(records,sizeof(*records),32,f), bad;
-    bool ok = !ferror(f) && n < 32 && audit_verify(records,n*sizeof(*records),&bad,NULL) == AUDIT_OK;
+    audit_record records[256];
+    size_t n = fread(records,sizeof(*records),256,f), bad;
+    bool ok = !ferror(f) && n < 256 && audit_verify(records,n*sizeof(*records),&bad,NULL) == AUDIT_OK;
     fclose(f);
     if (!ok) return false;
     *local = false; *escalated = false;

@@ -1,0 +1,10 @@
+<!-- Project-authored accelerated M4 fixture, not an SDP configuration copy. -->
+<SLM:system>
+  <SLM:component name="coldchain-fridged">
+    <SLM:command>/system/bin/fridged</SLM:command>
+    <SLM:args>-s /system/etc/m3-scenario.csv -p 100 -g 1 -e 1 -l /tmp/m4-audit.bin</SLM:args>
+    <SLM:repair backoff="1">restart</SLM:repair>
+    <SLM:waitfor wait="pathname">/dev/fridge0</SLM:waitfor>
+    <SLM:stop stop="signal" timeout="3">SIGTERM</SLM:stop>
+  </SLM:component>
+</SLM:system>

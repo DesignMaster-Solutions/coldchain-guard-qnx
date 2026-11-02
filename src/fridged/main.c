@@ -16,6 +16,7 @@ struct fridge_ocb;
 #include <sched.h>
 #include "portable.h"
 #include "audit.h"
+#include "storage.h"
 
 struct fridge_ocb { iofunc_ocb_t base; char text[FRIDGE_TEXT_SIZE]; size_t length; bool snapshot; };
 static alarm_state state;
@@ -42,7 +43,7 @@ static void sample(void)
         audit_record record;
         if (!audit_append_event(&chain,&record,&result.events[i]) || !audit_write(log_file,&record)) fatal("audit append");
     }
-    if (fflush(log_file)) fatal("audit flush");
+    if (!fridge_log_sample(log_file,&chain,elapsed,row.temp_mc,row.valid)) fatal("audit sample/sync");
 }
 static int pulse(message_context_t *ctp, int code, unsigned flags, void *handle)
 {
@@ -109,7 +110,7 @@ int main(int argc, char **argv)
         } else return EXIT_FAILURE;
     }
     if (!scenario || !log_path || optind != argc) {
-        fprintf(stderr,"usage: fridged -s scenario.csv -p period_ms -l NEW-audit.bin [-P priority] [-g grace_s] [-e escalation_s]\n"); return EXIT_FAILURE;
+        fprintf(stderr,"usage: fridged -s scenario.csv -p period_ms -l audit.bin [-P priority] [-g grace_s] [-e escalation_s]\n"); return EXIT_FAILURE;
     }
     struct sched_param scheduling = { .sched_priority = (int)priority };
     int error = pthread_setschedparam(pthread_self(),SCHED_FIFO,&scheduling);
@@ -117,11 +118,8 @@ int main(int argc, char **argv)
     FILE *f = fopen(scenario,"r"); if (!f) fatal("scenario open");
     bool loaded = scenario_load(f,rows,SCENARIO_CAPACITY,&row_count);
     if (fclose(f) || !loaded) { fprintf(stderr,"invalid scenario\n"); return EXIT_FAILURE; }
-    /* Never truncate or silently resume an existing chain. Restart belongs to M4. */
-    int fd = open(log_path,O_WRONLY|O_CREAT|O_EXCL,0600);
-    if (fd == -1) fatal("audit create (requires new path)");
-    log_file = fdopen(fd,"wb"); if (!log_file) fatal("audit fdopen");
-    audit_init(&chain);
+    log_file = fridge_log_open(log_path,&chain);
+    if (!log_file) fatal("audit open/verify/resume");
     start_ms = now_ms();
     if (!alarm_init(&state,&config,0)) return EXIT_FAILURE;
     sample();

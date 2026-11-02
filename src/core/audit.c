@@ -56,7 +56,7 @@ bool audit_append_event(audit_chain *chain, audit_record *record, const alarm_ev
     return audit_append(chain, record, e->t_ms, (uint32_t)e->type, e->temperature_mc, detail);
 }
 
-static bool verify_record(audit_chain *chain, const uint8_t *record)
+bool audit_verify_next(audit_chain *chain, const uint8_t record[AUDIT_RECORD_SIZE])
 {
     uint8_t digest[32];
     if (chain->seq == UINT64_MAX || get_be(record, 8) != chain->seq + 1 ||
@@ -76,7 +76,7 @@ enum audit_status audit_verify(const void *buffer, size_t bytes, size_t *bad_ind
     if (!buffer && bytes) return AUDIT_BROKEN;
     const uint8_t *p = buffer;
     while (bytes >= AUDIT_RECORD_SIZE) {
-        if (!verify_record(&chain, p)) return AUDIT_BROKEN;
+        if (!audit_verify_next(&chain, p)) return AUDIT_BROKEN;
         ++*bad_index;
         p += AUDIT_RECORD_SIZE;
         bytes -= AUDIT_RECORD_SIZE;
@@ -97,7 +97,7 @@ enum audit_status audit_verify_file(FILE *file, size_t *bad_index, audit_chain *
         size_t n = fread(record.bytes, 1, AUDIT_RECORD_SIZE, file);
         if (ferror(file)) return AUDIT_IO_ERROR;
         if (n == 0) break;
-        if (n != AUDIT_RECORD_SIZE || !verify_record(&chain, record.bytes)) return AUDIT_BROKEN;
+        if (n != AUDIT_RECORD_SIZE || !audit_verify_next(&chain, record.bytes)) return AUDIT_BROKEN;
         ++*bad_index;
     }
     if (final) *final = chain;
