@@ -6,7 +6,7 @@ Deadline: December 15, 2026, 2:00 pm ET. Every milestone ends with a commit and 
 |---|---|---|
 | M0 | Host and target — done 2026-11-02 | QNX SDP 8.0 installed on a Linux x86_64 host (Docker on macOS) with the non-commercial license; QEMU x86_64 image built with `mkqnximage`; the core test binary built with `qcc` runs and passes on the target; supervisor for M4 chosen (SLM) |
 | M1 | Portable core — done 2026-11-02 (host and QNX 8.0 target) | Alarm core in C (excursion state machine, escalation ladder, acknowledgement, hash-chained audit records) with host unit tests; the same files compile with `qcc` |
-| M2 | `fridged` | Resource manager registers `/dev/fridge0`; `cat /dev/fridge0` prints temperature and state; writing to it changes the limits; the simulated sensor reads scenario files |
+| M2 | `fridged` — done 2026-11-02 (host and QNX target) | Resource manager registers `/dev/fridge0`; `cat /dev/fridge0` prints temperature and state; writing to it changes the limits; the simulated sensor reads scenario files |
 | M3 | Timing | Sampler runs on a timer pulse at a fixed priority; the alarm fires within its own deadline while a lower-priority CPU hog runs (this checks our deadline, it is not a benchmark of QNX) |
 | M4 | Resilience | After `kill -9 fridged` SLM restarts it; the audit log records the gap explicitly and the chain still verifies |
 | M5 | Host tool | `fgctl` replays a scenario on the target and verifies the audit chain from the host |
@@ -22,16 +22,26 @@ Deadline: December 15, 2026, 2:00 pm ET. Every milestone ends with a commit and 
 - Host proof: `make test`, C11 with `-Wall -Wextra -Werror -O2 -fsanitize=address,undefined`. Four SHA-256 FIPS vectors (including one million `a`), chunk boundaries, alarm scenarios, invalid input, timestamp boundaries, recovery serialization, a canonical record hash checked against Python hashlib, every-byte corruption, deletion, legitimate gap/resume, and buffer/file verification pass.
 - Mutation proof: temporarily changed the upper recovery bound from `high_mc - hysteresis_mc` to `high_mc + hysteresis_mc`. `test_hysteresis` failed on premature recovery (make exit 2); restored the code and reran successfully. No mutated code is committed.
 - Target proof (M0, 2026-11-02): `tools/host/build-vm.sh` compiles `tests/test_core.c` and the three core files with `qcc -Vgcc_ntox86_64` (gcc 12.2.0, `-Wall -Wextra -Werror -O2`, no sanitizers on the target) and boots a `mkqnximage` image; on QNX 8.0.0 x86_64 under QEMU all eight test groups print PASS and the boot script prints `coldchain: core tests rc=0`. Red check on the target: changing the upper recovery comparison in `alarm.c` from `<=` to `<` and building that into a separate image makes the boot script print the failed assertion (`test_power_and_recovery`) and `coldchain: core tests FAILED`, and `run-vm.sh` exits 1. No mutated code is committed.
-- Not yet verified: physical sensor, notification delivery, resource manager, watchdog, durable storage, and deployment. No QNX performance measurement was made. `tools/host/` is outside M1 ownership.
-
-## Log
-
-- 2026-11-02: repository created with scope and plan; non-commercial SDP 8.0 license requested on myQNX.
-- 2026-11-02: M0 done: SDP 8.0 (com.qnx.qnx800 8.0.0) installed headless in Docker; x86_64 QEMU image with `mkqnximage`; core tests pass on the target. Target: x86_64. The watchdog in M4 uses SLM, whose restart policy (with back-off) restarts a component that exits abnormally.
-- 2026-11-02: M1 host core delivered: portable alarm and recovery data, SHA-256 chained audit with explicit restart gaps, sanitizer tests and red/green hysteresis mutation proof. QNX compile remains pending the separate SDP installation.
+- Not yet verified: physical sensor, notification delivery, watchdog, durable storage, and deployment. Resource manager verification was added in M2 below. No QNX performance measurement was made. `tools/host/` is outside M1 ownership.
 
 ## M2 portable contract and host proof
 
 - CSV: optional `t_ms,temp_mc` header, first timestamp zero, strictly increasing unsigned milliseconds, signed 32-bit milli-Celsius or empty temperature (invalid sample); at most 4096 rows. No interpolation: hold each row until the next, and hold the final row indefinitely. Scenario time is elapsed monotonic time since daemon startup.
 - A write contains all three unique keys `low`, `high`, `hyst`, in arbitrary order. Decimal overflow, unknown/duplicate/missing keys, embedded NUL and oversized commands fail atomically. Validation delegates to M1 `alarm_init`; only the three limits change, preserving alarm history and other settings. The next sample evaluates the new limits.
 - Host red/green (2026-11-02): a scratch copy mutated the required-key check from `seen != 7` to `seen == 0`. The missing-key test with otherwise valid defaults failed (assertion, exit 134); original sources pass `make test` with ASan/UBSan. An initial missing-key case was invalid for another reason; added the valid-default case to isolate this check. No mutant is committed.
+
+## M2 target integration and limits
+
+- One dispatch thread serializes sampling and device I/O. `timer_create(CLOCK_MONOTONIC)` sends `SIGEV_PULSE` through `message_connect` to a `pulse_attach` handler; each sample calls `alarm_step`, appends every emitted event through `audit.c`, then flushes. No priority tuning or timing measurement is part of M2.
+- Read snapshots are per-open and support fragmented reads and EOF. Device permissions are 0644. Writes use the core validator without resetting alarm history. Renamed the core state typedef from `alarm` to `alarm_state` to coexist with POSIX `alarm()` in `<unistd.h>`; the state machine is unchanged.
+- Official API references consulted inside the installed SDP: `com.qnx.doc.neutrino.resmgr/topic/read_write_Sample_IO_READ.html`, `read_write_Sample_IO_WRITE.html`; `com.qnx.doc.neutrino.lib_ref/topic/p/pulse_attach.html`, `m/message_connect.html`, `t/timer_create.html`, `i/iofunc_mount_t.html`. No SDP content is redistributed.
+- Target green: `build-vm.sh` compiles with `qcc -Vgcc_ntox86_64`, C11 and strict warnings. The boot test retains `coldchain: core tests rc=0`, then reads the device, writes new limits, checks invalid writes return `EINVAL` without changing limits, exercises bytewise reads/EOF, verifies a nonempty audit chain with excursion/recovery events and rejects corrupted records. It prints `coldchain: m2 rc=0`; `run-vm.sh` exits 0 only for both markers.
+- Target red: a source copy outside the repo changed the expected initial upper limit from 8000 to 7999 in `test_fridge_target.c`. Built into `~/Backups/impressora/qnx/vm-x86_64-mutant`, it fails the initial-state assertion and prints `coldchain: m2 FAILED`; `run-vm.sh` exits 1 even though the core marker passes. Neither mutant source nor image is committed.
+- Scope: the three human-scale CSVs pass host parsing; target integration uses the accelerated `tests/m2-scenario.csv`, not complete real-time runs of all three profiles. M1 simulated-time tests cover alarm escalation; target M2 checks excursion/recovery, not a deadline under load. No physical probe, notification delivery, fixed-priority guarantee, watchdog, crash recovery, fsync durability or external hash anchor has been verified. Log creation is exclusive; an existing path is refused. Hash-chain limitations from M1 still apply.
+
+## Log
+
+- 2026-11-02: repository created with scope and plan; non-commercial SDP 8.0 license requested on myQNX.
+- 2026-11-02: M0 done: SDP 8.0 (com.qnx.qnx800 8.0.0) installed headless in Docker; x86_64 QEMU image with `mkqnximage`; core tests pass on the target. Target: x86_64. The watchdog in M4 uses SLM, whose restart policy (with back-off) restarts a component that exits abnormally.
+- 2026-11-02: M1 host core delivered: portable alarm and recovery data, SHA-256 chained audit with explicit restart gaps, sanitizer tests and red/green hysteresis mutation proof. QNX compile remains pending the separate SDP installation.
+- 2026-11-02: M2 delivered: portable CSV/command/read protocol, QNX `/dev/fridge0` resource manager and timer pulses, host sanitizer tests and target integration. Host missing-key mutant and separate target expectation mutant both fail; unmodified build passes. M3 timing, M4 restart/durability and M5 host tool remain open.
