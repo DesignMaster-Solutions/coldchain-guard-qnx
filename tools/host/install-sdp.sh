@@ -23,7 +23,8 @@ CLT=$(find "$HOME/qnx" -maxdepth 3 -name qnxsoftwarecenter_clt -type f | head -1
 [ -n "$CLT" ] || { echo "qnxsoftwarecenter_clt not found after extraction"; ls -la "$HOME/qnx"; exit 1; }
 
 auth=(-myqnx.user "$QNX_USER" -myqnx.password "$QNX_PASS")
-"$CLT" "${auth[@]}" -addLicenseKey "$QNX_KEY"
+# -addLicenseKey echoes the key in clear; keep it out of `docker logs`.
+"$CLT" "${auth[@]}" -addLicenseKey "$QNX_KEY" 2>&1 | sed -E 's/[A-Z0-9]{4}(-[A-Z0-9]{4}){4}/<license key>/g'
 "$CLT" "${auth[@]}" -cleanInstall -mirrorBaseline qnx800 -installBaseline com.qnx.qnx800 -destination "$DEST"
 
 # shellcheck disable=SC1091
