@@ -29,3 +29,9 @@ Deadline: December 15, 2026, 2:00 pm ET. Every milestone ends with a commit and 
 - 2026-11-02: repository created with scope and plan; non-commercial SDP 8.0 license requested on myQNX.
 - 2026-11-02: M0 done: SDP 8.0 (com.qnx.qnx800 8.0.0) installed headless in Docker; x86_64 QEMU image with `mkqnximage`; core tests pass on the target. Target: x86_64. The watchdog in M4 uses SLM, whose restart policy (with back-off) restarts a component that exits abnormally.
 - 2026-11-02: M1 host core delivered: portable alarm and recovery data, SHA-256 chained audit with explicit restart gaps, sanitizer tests and red/green hysteresis mutation proof. QNX compile remains pending the separate SDP installation.
+
+## M2 portable contract and host proof
+
+- CSV: optional `t_ms,temp_mc` header, first timestamp zero, strictly increasing unsigned milliseconds, signed 32-bit milli-Celsius or empty temperature (invalid sample); at most 4096 rows. No interpolation: hold each row until the next, and hold the final row indefinitely. Scenario time is elapsed monotonic time since daemon startup.
+- A write contains all three unique keys `low`, `high`, `hyst`, in arbitrary order. Decimal overflow, unknown/duplicate/missing keys, embedded NUL and oversized commands fail atomically. Validation delegates to M1 `alarm_init`; only the three limits change, preserving alarm history and other settings. The next sample evaluates the new limits.
+- Host red/green (2026-11-02): a scratch copy mutated the required-key check from `seen != 7` to `seen == 0`. The missing-key test with otherwise valid defaults failed (assertion, exit 134); original sources pass `make test` with ASan/UBSan. An initial missing-key case was invalid for another reason; added the valid-default case to isolate this check. No mutant is committed.
