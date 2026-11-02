@@ -1,0 +1,11 @@
+# build outputs
+build/
+*.o
+*.a
+*.so
+# QNX SDP and target images never go in this repo
+qnx800/
+*.img
+*.qcow2
+output/
+.DS_Store
