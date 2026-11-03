@@ -113,7 +113,7 @@ https://github.com/DesignMaster-Solutions/qnx8-resmgr-codelab
 
 ## Best Codelab / Tutorial: description, if requested
 
-Your first QNX 8.0 resource manager, built and booted from a Mac. Our Apache-2.0 codelab, written and tested in November 2026, teaches headless SDP installation under the reader's own license, `qcc` cross-compilation, a `/dev/hello` resource manager with read/write handlers, and `mkqnximage` plus QEMU boot verification. It includes prerequisites, complete commands, expected console output and troubleshooting. The source is supplied; QNX software is not redistributed.
+Your first QNX 8.0 resource manager, built and booted from a Mac. Our Apache-2.0 codelab, written and tested in November 2026, teaches headless SDP installation under the reader's own license, `qcc` cross-compilation, a `/dev/hello` resource manager with read/write handlers, `mkqnximage` plus QEMU boot verification, and periodic work through timer pulses on a fixed-priority channel, including what `pidin` shows without that flag. It includes prerequisites, complete commands, expected console output and troubleshooting. The source is supplied; QNX software is not redistributed.
 
 ## New or existing project / work during the submission period
 
