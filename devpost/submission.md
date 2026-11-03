@@ -130,6 +130,18 @@ Not applicable. We selected Robotics & Medical, not Open-Source Contribution & P
 
 https://youtu.be/zUXXQ8SGPj0
 
+## Thumbnail and image gallery
+
+Files in `devpost/gallery/`, 3:2. Images 01-06 are frames of the demo video above (real QNX console and host output from the same recording); 07 is the published sample report. Thumbnail: `07.jpg`.
+
+1. `01.jpg`: QNX 8.0.0 boots in QEMU and runs its own acceptance gates: core, device, deadlines, SLM restart and forecast all pass.
+2. `02.jpg`: Staff acknowledge on the device: `ack who=Clinic.Team_1` written to /dev/fridge0 is accepted once; a duplicate is refused.
+3. `03.jpg`: Limits change atomically (an inverted range is refused), and the advisory trend reports to_high with an ETA before any alarm.
+4. `04.jpg`: The daemon is killed with signal 9; SLM restarts it and a new process serves /dev/fridge0 again.
+5. `05.jpg`: The audit exported over the QNX serial console is verified on the host: checksum, SHA-256 chain, byte-identical replay.
+6. `06.jpg`: `fgctl report` on that audit: chain checked first, who acknowledged and when, and the unknown interval after the restart.
+7. `07.jpg`: The HTML inspector report rendered from the same QNX boot, published at docs/evidence/sample-report.html.
+
 ## Representative, eligibility and final submission (not form copy)
 
 The authorized Representative must complete account-specific identity/team fields, confirm eligibility and accept the rules on behalf of Design Master Solutions, LLC. No personal identity or consent is supplied by this document. Check any additional fields in the authenticated form, paste the video URL and submit before December 15, 2026, 2:00 pm EST.
