@@ -1,6 +1,6 @@
 # Cold-Chain Guard for QNX 8.0
 
-A vaccine-fridge guard for small clinics, built to run on QNX 8.0. It watches a fridge that must stay between 2 °C and 8 °C, raises an alarm on a fixed deadline when the temperature drifts out of range, escalates until a person acknowledges it, comes back on its own if it crashes, and keeps a tamper-evident log that an inspector can verify.
+A vaccine-fridge guard for small clinics, built to run on QNX 8.0. It watches a fridge that must stay between 2 °C and 8 °C, raises an alarm on a fixed deadline when the temperature drifts out of range, escalates until it is acknowledged, comes back on its own if it crashes, and keeps a hash-chained log that an inspector can verify. Edits inside the chain show up; removing its tail or rewriting all of it needs an external anchor, which is future work. The sensor is simulated: this is a software prototype, not a medical device.
 
 **Status (November 2, 2026):** M0–M5 done. The portable C11 core and fridge protocol pass host tests with AddressSanitizer and UndefinedBehaviorSanitizer. Cross-compiled with `qcc`, the core tests and `/dev/fridge0` integration pass on a QNX 8.0.0 x86_64 target in QEMU: reads, limit changes, invalid-write rejection and audit verification. Separate host and target mutations are detected. M3 checks the application alarm and first escalation deadlines under lower-priority CPU load; an inverted-priority target mutation fails. M4 verifies SLM crash restart, a new process serving the device, and a verified audit chain with exactly one unknown gap between samples. Host corruption-bypass and target no-restart mutations fail. The predictive pre-alarm is integrated with device reads, transition-only audit hints and its own host/target red-green checks. The M5 host tool validates scenarios, replays them on QNX, checks the serial export checksum and verifies the audit chain on the host. Built for the QNX Global Hackathon (Robotics & Medical); see [docs/build-plan.md](docs/build-plan.md) for contracts and verification limits.
 
@@ -26,7 +26,9 @@ A vaccine-fridge guard for small clinics, built to run on QNX 8.0. It watches a 
 
 ## Why
 
-A small clinic keeps its vaccines in one or two fridges. If the door is left ajar at 6 pm or the power drops overnight, the fridge drifts out of the 2–8 °C range and often nobody notices until the next morning, when the doses may have to be thrown away. A guard that never skips a reading and never sleeps on an alarm is the kind of job a real-time OS is built for.
+A clinic that keeps vaccines in a fridge has to answer specific questions when the temperature leaves its range. [CDC guidance](https://www.cdc.gov/vaccines/hcp/storage-handling/temp-monitoring.html) says an excursion requires immediate action and asks staff to document when it happened, the minimum and maximum temperatures, how long the vaccine may have been affected and who reported it. A door left ajar at closing time still needs those answers the next morning, and [vaccine appearance is not a reliable indicator](https://www.cdc.gov/vaccines/hcp/storage-handling/cold-chain.html) of exposure.
+
+Why QNX, as demonstrated on the target here: fixed priorities keep the sampler and alarm checks passing under lower-priority CPU load; a crashed daemon is one restartable process under SLM, not a reboot; and a resource manager lets any POSIX client read the fridge without a custom protocol.
 
 ## What it does
 
@@ -41,6 +43,16 @@ A small clinic keeps its vaccines in one or two fridges. If the door is left aja
 | `fgctl` (host) | Replays a scenario on the target and verifies the audit chain | Host tool |
 
 ## Build and run
+
+**Target:** QNX OS 8.0.0, x86_64 under QEMU. **Toolchain:** QNX SDP 8.0, `qcc -Vgcc_ntox86_64` (GCC 12.2), `mkqnximage`.
+
+No QNX license? You can still check the real target output: [docs/evidence/qnx-boot-console.log](docs/evidence/qnx-boot-console.log) is the literal serial console of the boot in the demo video, and the host verifies the audit it exported:
+
+```sh
+make build/fgctl build/replay_target
+R=$(mktemp -d); build/replay_target tests/m5-scenario.csv "$R/host.bin"
+python3 tools/host/fgctl-extract.py docs/evidence/qnx-boot-console.log "$R/audit.bin" build/fgctl "$R/host.bin"
+```
 
 Host helpers need a C11 compiler, Make, Bash and Python 3. Target replay also needs QNX SDP 8.0 (free for non-commercial use through [QNX Everywhere](https://www.qnx.com/products/everywhere/)), Docker and QEMU. The SDP is not part of this repository; it lives on a Docker volume on a Linux x86_64 host image.
 

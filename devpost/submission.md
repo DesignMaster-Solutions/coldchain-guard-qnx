@@ -22,9 +22,11 @@ Robotics & Medical
 
 ## Inspiration
 
-A fridge door left ajar is an ordinary mistake. For a small clinic, finding it the next morning is too late to reconstruct what happened. We wanted to explore a guard that makes temperature excursions, alarm escalation and missing observations inspectable, instead of reducing everything to a reassuring green light.
+A fridge door left ajar at closing time is an ordinary mistake, and the clinic still has to answer for it the next morning. [CDC guidance](https://www.cdc.gov/vaccines/hcp/storage-handling/temp-monitoring.html) says a temperature excursion requires immediate action and asks staff to document when it happened, the minimum and maximum temperatures, how long the vaccine may have been affected and who reported it. [Vaccine appearance is not a reliable indicator](https://www.cdc.gov/vaccines/hcp/storage-handling/cold-chain.html) of exposure, and failing the cold chain can mean extra doses for patients and more wastage and cost for providers. We wanted a guard that makes excursions, escalation and missing observations inspectable, instead of reducing everything to a reassuring green light.
 
-We chose QNX because this problem calls for explicit scheduling, device interfaces and process supervision. Our submission is a working software prototype with a simulated sensor on QEMU. It is not a medical device, a validated monitoring system or evidence that any vaccine is safe to use.
+We chose QNX for three reasons this project demonstrates on the target. Fixed priorities keep the sampler and alarm checks passing under lower-priority CPU load. A crashed daemon is one restartable process under SLM, not a reboot. A resource manager lets any POSIX client read the fridge without a custom protocol. It is also a market QNX already serves: its [medical devices page](https://blackberry.qnx.com/en/industries/medical-devices) names patient monitoring and drug delivery systems.
+
+Our submission is a working software prototype with a simulated sensor on QEMU. It is not a medical device, a validated monitoring system or evidence that any vaccine is safe to use.
 
 ## What it does
 
@@ -56,7 +58,7 @@ Mutation checks exposed weaknesses in our tests, including an assertion that acc
 
 ## Accomplishments that we're proud of
 
-We can follow one reproducible path from a CSV scenario to a QNX target replay and a host-verified audit. The same repository contains the device adapter, supervisor fixture, host tools and acceptance tests, with documented failure cases and limits.
+We can follow one reproducible path from a CSV scenario to a QNX target replay and a host-verified audit, and anyone can recheck that audit without a QNX license from the literal boot console in `docs/evidence/`. The same repository contains the device adapter, supervisor fixture, host tools and acceptance tests, with documented failure cases and limits.
 
 Our demo is the real QNX console: the boot reports successful core, device, application-deadline, restart, forecast and serial-export gates, then a live session reads the device, changes its limits and kills the daemon under SLM. The audit exported by that same boot is then verified on the host against a fresh replay. Separate deliberate mutations are rejected, as recorded in `docs/build-plan.md`. Host checks do not substitute for QNX execution.
 
@@ -70,7 +72,7 @@ QNX resource managers let us present the guard through ordinary file operations,
 
 ## What's next for Cold-Chain Guard
 
-We want to validate a physical temperature probe on supported hardware, then test persistent media and power-loss behavior. A Raspberry Pi 5 and a 1-Wire probe are possible next steps, not completed integrations. External notifications, a staff acknowledgement interface, stalled-process detection and trusted audit anchoring also remain future work. Physical sensing and any clinical use require validation beyond this prototype.
+We want to validate a physical temperature probe on supported hardware, anchor the audit to calendar time, then test persistent media and power-loss behavior. A Raspberry Pi 5 and a 1-Wire probe are possible next steps, not completed integrations. External notifications, a staff acknowledgement interface, stalled-process detection and trusted audit anchoring also remain future work. Physical sensing and any clinical use require validation beyond this prototype.
 
 ## Built with
 
