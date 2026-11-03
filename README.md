@@ -4,7 +4,7 @@ A vaccine-fridge guard for small clinics, built to run on QNX 8.0. It watches a 
 
 **Status (November 2, 2026):** M0–M5 done. The portable C11 core and fridge protocol pass host tests with AddressSanitizer and UndefinedBehaviorSanitizer. Cross-compiled with `qcc`, the core tests and `/dev/fridge0` integration pass on a QNX 8.0.0 x86_64 target in QEMU: reads, limit changes, invalid-write rejection and audit verification. Separate host and target mutations are detected. M3 checks the application alarm and first escalation deadlines under lower-priority CPU load; an inverted-priority target mutation fails. M4 verifies SLM crash restart, a new process serving the device, and a verified audit chain with exactly one unknown gap between samples. Host corruption-bypass and target no-restart mutations fail. The predictive pre-alarm is integrated with device reads, transition-only audit hints and its own host/target red-green checks. The M5 host tool validates scenarios, replays them on QNX, checks the serial export checksum and verifies the audit chain on the host. Built for the QNX Global Hackathon (Robotics & Medical); see [docs/build-plan.md](docs/build-plan.md) for contracts and verification limits.
 
-**Demo (under 3 minutes, real QNX console in QEMU):** https://youtu.be/zKRIykuno2c
+**Demo (under 3 minutes, real QNX console in QEMU):** https://youtu.be/zUXXQ8SGPj0
 
 ## Structure
 
@@ -52,6 +52,9 @@ No QNX license? You can still check the real target output: [docs/evidence/qnx-b
 make build/fgctl build/replay_target
 R=$(mktemp -d); build/replay_target tests/m5-scenario.csv "$R/host.bin"
 python3 tools/host/fgctl-extract.py docs/evidence/qnx-boot-console.log "$R/audit.bin" build/fgctl "$R/host.bin"
+# the same boot's M7 acknowledgement audit, as the inspector report
+sed -n 's/^M7-/FGCTL-/p' docs/evidence/qnx-boot-console.log > "$R/m7.out"
+python3 tools/host/fgctl-extract.py "$R/m7.out" "$R/m7.bin" build/fgctl && build/fgctl report "$R/m7.bin" > "$R/report.html"
 ```
 
 Host helpers need a C11 compiler, Make, Bash and Python 3. Target replay also needs QNX SDP 8.0 (free for non-commercial use through [QNX Everywhere](https://www.qnx.com/products/everywhere/)), Docker and QEMU. The SDP is not part of this repository; it lives on a Docker volume on a Linux x86_64 host image.

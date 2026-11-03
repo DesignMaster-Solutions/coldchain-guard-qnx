@@ -17,13 +17,16 @@ import tempfile
 import time
 
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
-# A synthetic excursion with a one-second grace and escalation, then the same daemon under a dedicated SLM instance.
+# A synthetic excursion with a one-second grace and escalation, acknowledged once (a duplicate is refused), then the same daemon under a dedicated SLM instance.
 SESSION = [
     ("uname -a", 2),
     ("/system/bin/fridged -s /system/etc/m3-scenario.csv -p 100 -g 1 -e 1 -l /tmp/live-audit.bin &", 1),
     ("waitfor /dev/fridge0 20", 1),
     ("cat /dev/fridge0", 3),
     ("cat /dev/fridge0", 3),
+    ("printf 'ack who=Clinic.Team_1\\n' > /dev/fridge0; echo ack rc=$?", 2),
+    ("cat /dev/fridge0", 3),
+    ("printf 'ack who=Clinic.Team_1\\n' > /dev/fridge0; echo dup rc=$?", 3),
     ("echo 'low=2000 high=9500 hyst=300' > /dev/fridge0", 2),
     ("cat /dev/fridge0", 3),
     ("echo 'low=9000 high=1000 hyst=300' > /dev/fridge0; echo write rc=$?", 3),

@@ -128,7 +128,7 @@ Not applicable. We selected Robotics & Medical, not Open-Source Contribution & P
 
 ## Demo video URL
 
-https://youtu.be/zKRIykuno2c
+https://youtu.be/zUXXQ8SGPj0
 
 ## Representative, eligibility and final submission (not form copy)
 
