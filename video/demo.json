@@ -4,68 +4,48 @@
   "rate": 186,
   "bg": "#0d1c27",
   "accent": "#38bdb0",
-  "out": "/Users/alandebortolo/Backups/impressora/qnx/m6/demo.mp4",
+  "out": "../build/demo.mp4",
   "scenes": [
     {
-      "title": "A fridge alarm must explain the gaps",
-      "lines": [
-        "Cold-Chain Guard for QNX 8.0",
-        "Simulated sensor • QNX 8.0.0 x86_64 in QEMU",
-        "Recorded target console; not a new QEMU boot"
-      ],
-      "mono": [
-        "coldchain: m2 rc=0",
-        "coldchain: m4 rc=0"
-      ],
-      "say": "A fridge alarm must explain what happened, and what it could not observe. We built Cold Chain Guard on QNX eight. These are actual saved QNX console results for the device and crash recovery checks. Our sensor is simulated. This is a software prototype, not a medical device."
+      "title": "QNX 8.0 boots in QEMU and checks itself",
+      "clip": "../build/live.mp4",
+      "clip_from": 0,
+      "clip_to": 25.92,
+      "say": "A fridge alarm must explain what happened, and what it could not observe. This is Cold Chain Guard on QNX eight in QEMU, with the boot shown sped up. The sensor is simulated, and this is a software prototype, not a medical device. During boot, the target runs our checks, and each one reports its result on this console."
     },
     {
-      "title": "One device, ordinary file operations",
-      "lines": [
-        "Read /dev/fridge0: temperature, validity, alarm and advice",
-        "Write all limits atomically; reject invalid input",
-        "QNX resource manager + monotonic timer pulses"
-      ],
-      "mono": [
-        "coldchain: initial device read verified",
-        "coldchain: write and EINVAL atomicity verified"
-      ],
-      "say": "The resource manager exposes slash dev slash fridge zero. Reading returns a snapshot of temperature, validity, alarm state and advisory trend. Writing changes all limits atomically. Invalid input changes nothing. A monotonic timer delivers pulses to the dispatch loop, where sampling and device requests are serialized."
+      "title": "The fridge is a file: /dev/fridge0",
+      "clip": "../build/live.mp4",
+      "clip_from": 25.92,
+      "clip_to": 39.0,
+      "say": "Now the console is live. We start the guard with a synthetic excursion. A resource manager exposes slash dev slash fridge zero, so an ordinary cat returns temperature, validity, alarm state and escalation level. A monotonic timer delivers pulses to the dispatch loop. This alarm is active, at escalation level three, and the second read confirms it."
     },
     {
-      "title": "Scheduling and recovery, checked on QNX",
-      "lines": [
-        "Fixed FIFO priority for dispatch and timer pulses",
-        "SLM restarts an abnormally terminated process",
-        "Pass/fail application checks; no QNX performance results"
-      ],
-      "mono": [
-        "coldchain: local alarm deadline PASS",
-        "coldchain: escalation deadline PASS",
-        "coldchain: m3 rc=0",
-        "coldchain: new serving process and restart acceptance PASS",
-        "coldchain: m4 rc=0"
-      ],
-      "say": "The sampler and pulses use explicit fixed priority. Our application deadline checks pass under lower priority CPU load. SLM restarts an abnormally terminated daemon, and the test reads the device from a different serving process. The audit declares an unknown gap. These are fixture acceptance checks, not QNX performance results."
+      "title": "Limits change atomically, or not at all",
+      "clip": "../build/live.mp4",
+      "clip_from": 39.0,
+      "clip_to": 51.5,
+      "say": "Writing to the same device changes all limits in one step, and the next sample evaluates them, so this alarm clears. Now an invalid command, with the low limit above the high one. The write fails, and the limits stay as they were."
     },
     {
-      "title": "Advice cannot silence an alarm",
-      "lines": [
-        "Explainable linear trend toward the configured limits",
-        "Sensor gaps and accepted limit writes reset the window",
-        "Alarm logic remains authoritative"
-      ],
-      "mono": [
-        "coldchain: forecast rc=0"
-      ],
-      "say": "The forecast fits a linear trend and offers advice about approaching a limit. A sensor gap or accepted limit change resets its window. Advice cannot delay, suppress or clear the alarm. The saved QNX forecast gate passed. Physical sensing and clinical suitability have not been validated."
+      "title": "Advice comes early. It cannot silence the alarm",
+      "clip": "../build/live.mp4",
+      "clip_from": 51.5,
+      "clip_to": 68.8,
+      "say": "Next, a warming fixture. The forecast fits a linear trend and offers advice before the limit is reached: alarm zero, trend to high, with an estimate. It is advice only. When the temperature crosses the limit, the real alarm fires. A forecast cannot delay, suppress or clear it."
     },
     {
-      "title": "Run the portable checks again",
+      "title": "Kill the daemon: SLM restarts it",
+      "clip": "../build/live.mp4",
+      "clip_from": 68.8,
+      "clip_to": 86.6,
+      "say": "Now the daemon runs under System Launch and Monitor, at fixed priority twenty. We kill it. S L M reports the abnormal exit and restarts it, and a different process serves the device. Its clock and alarm state start over, and the audit records one explicit unknown gap, instead of inventing what it never saw."
+    },
+    {
+      "title": "The portable core, on the host",
       "lines": [
-        "Executed on the host during this render",
         "C11 • strict warnings • AddressSanitizer + UndefinedBehaviorSanitizer",
-        "Selected literal output; full command exit checked separately"
+        "Selected literal output from this render"
       ],
       "mono_cmd": "make -B test",
       "mono_cwd": "..",
@@ -75,37 +55,23 @@
         "PASS storage",
         "PASS forecast"
       ],
-      "say": "Now we run the portable checks on the host, using strict compiler warnings and sanitizers. These selected lines are real command output. The suite covers the state machine, device protocol, storage, forecast and host tools. Host execution supports the saved target evidence; it does not replace execution on QNX."
+      "say": "On the host, the portable modules build with strict warnings and sanitizers. These are real lines from this run. They support the target evidence; they do not replace it."
     },
     {
-      "title": "Replay the same input on the host",
+      "title": "The audit from that boot, verified on the host",
       "lines": [
-        "Fresh host reference from the target scenario",
-        "CSV timestamps are synthetic input, not measured performance",
-        "M5 replay steps rows; it is separate from the live timer path"
+        "Exported over the QNX serial console",
+        "Checksum, audit chain, byte equality with a host replay of the same CSV"
       ],
-      "mono_cmd": "build/fgctl check-scenario tests/m5-scenario.csv && build/replay_target tests/m5-scenario.csv \"$REF\"",
-      "mono_cwd": "..",
-      "mono_grep": [
-        "scenario OK",
-        "replay:"
-      ],
-      "say": "We validate the same scenario used on the target and generate a fresh host reference. This deterministic replay steps the production modules once per CSV row. Scenario timestamps are synthetic input, not measured platform performance. The live timer and resource manager have their own target tests."
-    },
-    {
-      "title": "Verify the real QNX serial export",
-      "lines": [
-        "Saved QNX export: checksum, audit chain, host reference",
-        "The comparison also rejects a self-consistent truncated replay"
-      ],
-      "mono_cmd": "python3 tools/host/fgctl-extract.py \"$QNX_CONSOLE\" \"$AUDIT\" build/fgctl \"$REF\"",
+      "mono_cmd": "python3 tools/host/fgctl-extract.py build/console.log build/audit.bin build/fgctl build/ref.bin",
       "mono_cwd": "..",
       "mono_grep": [
         "serial OK:",
         "audit OK:",
-        "replay OK:"
+        "replay OK:",
+        "Integrity only"
       ],
-      "say": "Next we extract the real QNX serial export. The checksum verifies transfer, the audit verifier checks the chain, and the fresh host replay must match every byte. This closes the truncated replay case. A live audit still needs an external trusted anchor to detect a rewritten chain or valid tail removal."
+      "say": "The audit from that same boot left the target over the serial console. The checksum verifies the transfer, the verifier checks the chain, and a host replay of the same scenario must match every byte, which also catches a truncated replay. It proves integrity only: a live log still needs an external trusted anchor."
     },
     {
       "title": "Reproduce it. Then take it to hardware.",
@@ -115,11 +81,7 @@
         "Next: physical probe, persistent media, external notifications",
         "Prototype only • no vaccine-safety or clinical claim"
       ],
-      "mono": [
-        "audit OK: records=21",
-        "coldchain: m5 host rc=0"
-      ],
-      "say": "The verified target replay contains twenty one records. Our public source and companion codelab show how to build and boot with your own licensed SDP. Hardware sensing, power loss validation, external notifications and a staff acknowledgement interface remain future work. Follow the repository to reproduce the QEMU workflow. Built by Design Master Solutions, LLC."
+      "say": "Hardware sensing, power loss validation, external notifications and a staff acknowledgement interface remain future work. Our public source and companion codelab show how to build and boot this with your own licensed SDP. Built by Design Master Solutions, LLC."
     }
   ]
 }

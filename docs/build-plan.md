@@ -156,8 +156,8 @@ Deadline: December 15, 2026, 2:00 pm ET. Every milestone ends with a commit and 
   and fails the new one (`replay MISMATCH: ... at record index=18 (target 18
   records, host 21)`, exit 1). No mutant is committed.
 - Evidence: commands, return codes and excerpts in
-  `~/Backups/impressora/qnx/m5-proof/result.txt`. Images only in
-  `~/Backups/impressora/qnx/vm-x86_64-m5` and `vm-x86_64-m5-mutant`. No SDP files,
+  an external proof file (not in this repo). Images only in
+  external VM directories. No SDP files,
   images or opaque binary fixtures enter git. No measured QNX performance,
   latency, benchmark or comparison is published. Physical sensing, notifications,
   durable-media crash guarantees and M6 submission/video remain outside M5.

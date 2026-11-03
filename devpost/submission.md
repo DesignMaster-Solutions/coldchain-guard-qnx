@@ -1,8 +1,8 @@
 # Cold-Chain Guard: Devpost form text
 
-Prepared for Design Master Solutions, LLC. M6 part A only: not submitted, no video uploaded.
+Prepared for Design Master Solutions, LLC. Form copy for the authorized Representative; not submitted.
 
-Field coverage follows the public [event requirements](https://qnx.devpost.com/) and [official rules](https://qnx.devpost.com/rules), checked November 2, 2026. The authenticated form was deliberately not opened; its exact labels, optional fields and character limits must be checked by the Representative in part B. The sections below supply the requested story fields and every content requirement disclosed publicly. Editorial notes and the evidence table are not form copy.
+Field coverage follows the public [event requirements](https://qnx.devpost.com/) and [official rules](https://qnx.devpost.com/rules), checked November 2, 2026. Exact labels, optional fields and character limits are checked in the authenticated form before submitting. The sections below supply the requested story fields and every content requirement disclosed publicly. Editorial notes and the evidence table are not form copy.
 
 ## Project name
 
@@ -58,7 +58,7 @@ Mutation checks exposed weaknesses in our tests, including an assertion that acc
 
 We can follow one reproducible path from a CSV scenario to a QNX target replay and a host-verified audit. The same repository contains the device adapter, supervisor fixture, host tools and acceptance tests, with documented failure cases and limits.
 
-Our saved QNX console shows successful core, device, application-deadline, restart, forecast and serial-export gates. Separate deliberate mutations are rejected, as recorded in `docs/build-plan.md`. The demo rechecks the actual saved target export against a fresh host reference; it does not substitute host execution for QNX execution.
+Our demo is the real QNX console: the boot reports successful core, device, application-deadline, restart, forecast and serial-export gates, then a live session reads the device, changes its limits and kills the daemon under SLM. The audit exported by that same boot is then verified on the host against a fresh replay. Separate deliberate mutations are rejected, as recorded in `docs/build-plan.md`. Host checks do not substitute for QNX execution.
 
 We also published a companion codelab that takes a Mac developer from headless SDP setup to a resource manager built and booted on QNX in QEMU.
 
@@ -123,11 +123,11 @@ Not applicable. We selected Robotics & Medical, not Open-Source Contribution & P
 
 ## Demo video URL
 
-PART B: upload the verified local `demo.mp4` to YouTube as public, then paste its URL here. No URL exists from part A. Local file: `/Users/alandebortolo/Backups/impressora/qnx/m6/demo.mp4`.
+DEMO_VIDEO_URL
 
-## Representative, eligibility and final submission (part B only)
+## Representative, eligibility and final submission (not form copy)
 
-The authorized Representative must complete account-specific identity/team fields, confirm eligibility and accept the rules on behalf of Design Master Solutions, LLC. No personal identity or consent is supplied by this document. Check any additional fields in the authenticated form, upload/link the public video and submit before December 15, 2026, 16:00 BRT (14:00 EST). Nothing was entered or submitted in part A.
+The authorized Representative must complete account-specific identity/team fields, confirm eligibility and accept the rules on behalf of Design Master Solutions, LLC. No personal identity or consent is supplied by this document. Check any additional fields in the authenticated form, paste the video URL and submit before December 15, 2026, 2:00 pm EST.
 
 ## Editorial evidence map (not a form field)
 
@@ -139,7 +139,7 @@ The authorized Representative must complete account-specific identity/team field
 | Verified resume, explicit gaps, SLM restart | `src/fridged/storage.c`; `config/slm-fridged.xml`; `tests/test_storage.c`; `tests/test_resilience_target.c` |
 | Replay/serial integrity and tail limitation | `tools/host/replay-target.c`; `tools/host/fgctl-extract.py`; `tests/test_serial.py`; README M5 |
 | Rejected mutations and QEMU acceptance limits | `docs/build-plan.md`, M1–M5 and predictive pre-alarm sections |
-| Saved target evidence used in video | `video/script.md`; source revision `e1e6a8a`; host-reference check added in `5ff7a0f` |
+| Target footage used in video | `video/live-session.py`; `video/script.md` |
 | Codelab scope and reproducibility | Companion repository `README.md`, `src/hello.c`, `scripts/build-image.sh`, `scripts/boot.sh` |
 
 Judging alignment: technological implementation is evidenced by native QNX integration and target checks; design by the scenario-to-audit workflow and explicit error states; potential impact by the clinic-fridge problem with hardware validation still pending; innovation by advisory forecasting kept separate from alarms and explicit uncertainty on recovery. No trained AI model or clinical benefit is claimed. These are the four equally weighted criteria in the public rules, not predicted scores.

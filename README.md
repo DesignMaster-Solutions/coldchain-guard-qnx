@@ -26,16 +26,16 @@ A vaccine-fridge guard for small clinics, built to run on QNX 8.0. It watches a 
 
 A small clinic keeps its vaccines in one or two fridges. If the door is left ajar at 6 pm or the power drops overnight, the fridge drifts out of the 2–8 °C range and often nobody notices until the next morning, when the doses may have to be thrown away. A guard that never skips a reading and never sleeps on an alarm is the kind of job a real-time OS is built for.
 
-## What it will do
+## What it does
 
 | Piece | What it does | QNX feature it uses |
 |---|---|---|
 | `fridged` | Resource manager that exposes `/dev/fridge0`: read the temperature and the alarm state, write the limits | Resource manager framework (`resmgr`/`iofunc`), the pathname space |
 | sampler | Reads the sensor on a fixed period at a fixed priority | Timers that deliver pulses, thread priorities |
-| alarm ladder | Out of range → local alarm → message → second contact, until someone acknowledges | Message passing and pulses |
+| alarm ladder | Out of range → local alarm → message → second contact, until acknowledged. Each step is an audit event; delivering it to a person is future work | Pulses driving the portable state machine |
 | watchdog | Restarts `fridged` if it dies; stall detection remains future work | System Launch and Monitor (`slm`) restart policy |
 | audit log | Append-only; every record carries the hash of the previous one, so a missing or edited record shows up | POSIX file I/O |
-| sensor | Simulated sensor driven by scenario files (door ajar, power cut, compressor failure) on a QEMU target; a Raspberry Pi 5 with a 1-Wire probe is optional | QEMU x86_64 target image |
+| sensor | Simulated sensor driven by scenario files (door ajar, power cut, compressor failure) on a QEMU target; a Raspberry Pi 5 with a 1-Wire probe is a possible next step, not done | QEMU x86_64 target image |
 | `fgctl` (host) | Replays a scenario on the target and verifies the audit chain | Host tool |
 
 ## Build and run
@@ -44,10 +44,11 @@ Host helpers need a C11 compiler, Make, Bash and Python 3. Target replay also ne
 
 ```sh
 make test                                   # host: core + fridge tests with sanitizers
+export VM_DIR=/absolute/path/to/a/new/vm-directory   # outside this repo, new for each build
 docker build -t qnx-host tools/host         # Linux x86_64 tools image (qcc, mkqnximage run from the SDP volume)
 # one-time SDP install onto the qnx-home volume: see the header of tools/host/install-sdp.sh
-docker run --rm -v qnx-home:/root -v "$PWD":/work:ro -v "$HOME/Backups/impressora/qnx/vm-x86_64-m5":/vm qnx-host bash /work/tools/host/build-vm.sh
-tools/host/run-vm.sh "$HOME/Backups/impressora/qnx/vm-x86_64-m5"          # boots QNX 8.0 in QEMU; exits 0 only if the tests pass on the target
+docker run --rm -v qnx-home:/root -v "$PWD":/work:ro -v "$VM_DIR":/vm qnx-host bash /work/tools/host/build-vm.sh
+tools/host/run-vm.sh "$VM_DIR"          # boots QNX 8.0 in QEMU; exits 0 only if the tests pass on the target
 ```
 
 Use a new VM directory for each build; the commands above and the M5 replay example are alternative entry points, not consecutive builds into the same directory.
@@ -79,7 +80,7 @@ build/fgctl verify /path/to/audit.bin
 build/fgctl check-scenario scenarios/door-ajar.csv
 # Must be a NEW directory outside this repository; needs Docker, SDP volume and QEMU.
 # Run a lengthy build/boot through your background job runner if applicable.
-tools/host/fgctl-replay.sh tests/m5-scenario.csv "$HOME/Backups/impressora/qnx/vm-x86_64-m5" 300
+tools/host/fgctl-replay.sh tests/m5-scenario.csv "$VM_DIR" 300
 # To recheck a collected serial log (no target needed) against the host replay of the same CSV:
 make build/fgctl build/replay_target
 ref=$(mktemp -d)/host-replay.bin
