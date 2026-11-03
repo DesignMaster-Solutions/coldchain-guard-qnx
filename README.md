@@ -52,7 +52,7 @@ tools/host/run-vm.sh "$HOME/Backups/impressora/qnx/vm-x86_64-m5"          # boot
 
 Use a new VM directory for each build; the commands above and the M5 replay example are alternative entry points, not consecutive builds into the same directory.
 
-`build-vm.sh` cross-compiles the core tests, `fridged`, the device integration test, the CPU hog, deadline test, resilience test, predictive pre-alarm test and M5 replay tool with `qcc`, then adds them and the scenarios to a `mkqnximage` QEMU image. At boot it runs the core tests, starts the daemon with an accelerated test fixture, runs `cat /dev/fridge0`, changes limits, rejects invalid writes, reads again and checks the audit chain, including deliberate corruption. It then runs an accelerated M3 scenario under per-CPU load and checks the local alarm and first escalation against the application deadlines using the monotonic clock. Next, a dedicated SLM instance launches the M4 fixture, the test kills the serving process, requires a different process to serve the device, stops it through SLM and verifies the entire stable audit file. `run-vm.sh` exits 0 only when **all five existing** markers appear: `coldchain: core tests rc=0`, `coldchain: m2 rc=0`, `coldchain: m3 rc=0`, `coldchain: m4 rc=0` and `coldchain: forecast rc=0`, **plus** the M5 export marker `coldchain: m5 serial rc=0` and successful host verification (`coldchain: m5 host rc=0`). After M4, a separate accelerated warming fixture checks device advice before the temperature alarm, the verified transition-only audit hints, and reset on limit changes and sensor gaps. Images stay outside the repository. The runner uses a temporary disk overlay inside the VM directory, so guest writes do not contaminate later acceptance boots; start from a freshly built image.
+`build-vm.sh` cross-compiles the core tests, `fridged`, the device integration test, the CPU hog, deadline test, resilience test, predictive pre-alarm test and M5 replay tool with `qcc`, then adds them and the scenarios to a `mkqnximage` QEMU image. At boot it runs the core tests, starts the daemon with an accelerated test fixture, runs `cat /dev/fridge0`, changes limits, rejects invalid writes, reads again and checks the audit chain, including deliberate corruption. It then runs an accelerated M3 scenario under per-CPU load and checks the local alarm and first escalation against the application deadlines using the monotonic clock. Next, a dedicated SLM instance launches the M4 fixture, the test kills the serving process, requires a different process to serve the device, stops it through SLM and verifies the entire stable audit file. `run-vm.sh` exits 0 only when **all five existing** markers appear: `coldchain: core tests rc=0`, `coldchain: m2 rc=0`, `coldchain: m3 rc=0`, `coldchain: m4 rc=0` and `coldchain: forecast rc=0`, **plus** the M5 export marker `coldchain: m5 serial rc=0` and successful host verification, including byte equality with the host replay of the same CSV (`coldchain: m5 host rc=0`). After M4, a separate accelerated warming fixture checks device advice before the temperature alarm, the verified transition-only audit hints, and reset on limit changes and sensor gaps. Images stay outside the repository. The runner uses a temporary disk overlay inside the VM directory, so guest writes do not contaminate later acceptance boots; start from a freshly built image.
 
 To run a human-scale scenario on the target (after the boot test stops its daemon):
 
@@ -80,8 +80,11 @@ build/fgctl check-scenario scenarios/door-ajar.csv
 # Must be a NEW directory outside this repository; needs Docker, SDP volume and QEMU.
 # Run a lengthy build/boot through your background job runner if applicable.
 tools/host/fgctl-replay.sh tests/m5-scenario.csv "$HOME/Backups/impressora/qnx/vm-x86_64-m5" 300
-# To recheck a collected serial log (no target needed):
-python3 tools/host/fgctl-extract.py /path/to/qemu.out /path/to/received.bin "$PWD/build/fgctl"
+# To recheck a collected serial log (no target needed) against the host replay of the same CSV:
+make build/fgctl build/replay_target
+ref=$(mktemp -d)/host-replay.bin
+build/replay_target tests/m5-scenario.csv "$ref" > /dev/null
+python3 tools/host/fgctl-extract.py /path/to/qemu.out /path/to/received.bin "$PWD/build/fgctl" "$ref"
 ```
 
 `verify` is a portable C11 command using the core's verifier, with a private temporary
@@ -115,6 +118,14 @@ malformed, truncated or checksum-mismatched frames, writes
 `<vm>/output/m5-audit.bin`, then runs `fgctl verify`. QEMU has no network. A checksum
 protects the serial transfer, not authenticity: without an external trusted
 final sequence/hash, valid tail removal or full-chain rewrite cannot be detected.
+
+For the replay, the runner closes that tail gap: it builds the same portable replay
+for the host (no FMA contraction, so the forecast rounds like the x86_64 target),
+runs it on the CSV in the VM directory, and requires the audit received from QNX to
+be byte-identical. An export that lost its last records, which a valid chain and a
+matching checksum both accept, fails with the first differing record index. This
+covers our deterministic replay, not a live device's audit, where the limit above
+still applies.
 
 Example from the QNX replay of `tests/m5-scenario.csv`, verified on the host:
 

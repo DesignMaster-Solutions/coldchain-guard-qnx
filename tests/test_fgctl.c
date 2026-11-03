@@ -36,9 +36,9 @@ int main(void)
     assert(audit_append(&chain,&records[11],3000,ALARM_EXCURSION,9000,"valid=1"));
     write_bytes(records,sizeof(records));
     assert(run("verify",path) == 0);
-    assert(strstr(output,"records=12") && strstr(output,"sample=1;") && strstr(output,"restart gap=1;"));
-    assert(strstr(output,"temperature alarm=1;") && strstr(output,"sensor failure=1;") && strstr(output,"sensor recovery=1;"));
-    assert(strstr(output,"escalation=1;") && strstr(output,"recovery=1;") && strstr(output,"forecast hint=1\n"));
+    /* Whole line: a lone "recovery=1;" also matches inside "sensor recovery=1;". */
+    assert(strstr(output,"records=12\n") && strstr(output,"\nunknown=0; excursion=2; temperature alarm=1; sensor failure=1; "
+        "sensor recovery=1; escalation=1; acknowledgement=1; rearm=1; recovery=1; restart gap=1; sample=1; forecast hint=1\n"));
     assert(strstr(output,"first_ms=0 last_ms=3000") && strstr(output,"discarded_bytes=7"));
     assert(strstr(output,"start_ms=0 end_ms=7000") && strstr(output,"session=1 start_ms=3000 end=not observed"));
     records[5].bytes[30] ^= 1;

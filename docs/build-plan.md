@@ -137,6 +137,20 @@ Deadline: December 15, 2026, 2:00 pm ET. Every milestone ends with a commit and 
   the original data. The original host runner rejects the SHA-256 mismatch,
   prints `coldchain: m5 host rc=1` and exits 1, while all five earlier gates and
   the target export completion marker pass. No mutant is committed.
+- Independent review: (1) host: a summary that never counts `ALARM_RECOVERY`
+  passed both suites, because `recovery=1;` also matches inside
+  `sensor recovery=1;`. Both tests now assert the whole counts line; the mutant
+  fails (`test_fgctl` exit 134, `test_serial.py` exit 1). (2) Serial: a frame that
+  lost its last record but re-declares length and SHA-256 is self-consistent and
+  its chain prefix verifies, so the extractor and `fgctl verify` both accept it.
+  A target replay that drops its final CSV row exports exactly that. The runner
+  now builds the same replay for the host (`-ffp-contract=off`, so the forecast
+  rounds like the x86_64 target), runs it on the CSV in the VM directory and
+  requires the received audit to be byte-identical, reporting the first differing
+  record index. The host test covers the truncated frame (accepted without the
+  reference, rejected at record index 20 with it), and an extractor that ignores
+  the reference fails it. The QNX console of the unmodified image passes:
+  `replay OK: target audit is byte-identical to the host replay (21 records)`.
 - Evidence: commands, return codes and excerpts in
   `~/Backups/impressora/qnx/m5-proof/result.txt`. Images only in
   `~/Backups/impressora/qnx/vm-x86_64-m5` and `vm-x86_64-m5-mutant`. No SDP files,
@@ -161,3 +175,4 @@ Deadline: December 15, 2026, 2:00 pm ET. Every milestone ends with a commit and 
 - 2026-11-02: pre-alarm review: the forecast boot gate now checks that the trend is judged against the limits in force after a device write, which closes a surviving startup-limits mutant.
 
 - 2026-11-02: M5 delivered: portable fgctl audit summary/CSV diagnostics, deterministic QNX scenario replay and checksummed serial export verified on the host; five previous gates plus M5 pass, external host count and target serial-byte mutants fail. M6 remains open; no QNX performance results published.
+- 2026-11-02: M5 review: whole-line count assertions close a surviving uncounted-recovery mutant; the runner now requires the QNX replay audit to be byte-identical to the host replay of the same CSV, which closes the self-consistent truncated export that the chain and checksum accept.

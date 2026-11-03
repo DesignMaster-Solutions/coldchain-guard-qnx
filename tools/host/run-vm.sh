@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Boot the image made by build-vm.sh with QEMU on the host (TCG, no network), console to a log, and
-# wait for five existing gates plus M5 serial export AND host verification.
+# wait for five existing gates plus M5 serial export, host verification AND byte equality with the host replay.
 #   tools/host/run-vm.sh <vm dir> [timeout seconds]
 # Mirrors the x86_64 branch of mkqnximage's qemu/runimage, minus the bridge network.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-make -C "$ROOT" build/fgctl
+make -C "$ROOT" build/fgctl build/replay_target
 VM=${1:?vm dir built by build-vm.sh}; T=${2:-300}
 cd "$VM"
 LOG=output/qemu.out
@@ -31,6 +31,11 @@ grep -q "coldchain: m4 rc=0" "$LOG"
 grep -q "coldchain: forecast rc=0" "$LOG"
 grep -q "coldchain: m5 serial rc=0" "$LOG"
 rc=0
-python3 "$ROOT/tools/host/fgctl-extract.py" "$LOG" output/m5-audit.bin "$ROOT/build/fgctl" || rc=$?
+# A valid chain cannot reveal lost trailing records: the host replay of the same CSV must give the same bytes.
+rm -f output/m5-reference.bin
+"$ROOT/build/replay_target" replay.csv output/m5-reference.bin >/dev/null || rc=2
+if [ "$rc" = 0 ]; then
+  python3 "$ROOT/tools/host/fgctl-extract.py" "$LOG" output/m5-audit.bin "$ROOT/build/fgctl" output/m5-reference.bin || rc=$?
+fi
 echo "coldchain: m5 host rc=$rc"
 [ "$rc" = 0 ] || exit 1

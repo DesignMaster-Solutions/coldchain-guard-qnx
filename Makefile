@@ -42,6 +42,7 @@ build/test_fgctl: tests/test_fgctl.c $(FGCTL) $(FGCTL_HEADERS) Makefile
 	mkdir -p build
 	$(CC) $(CFLAGS) $(SANITIZERS) -Isrc/core -Isrc/fridged -Isrc/fgctl tests/test_fgctl.c $(FGCTL) -o $@
 
+# No FMA contraction: the host reference must round the forecast like the x86_64 target (gcc -std=c11).
 build/replay_target: tools/host/replay-target.c src/fridged/portable.c src/fridged/storage.c src/core/forecast.c src/core/forecast.h $(FGCTL_HEADERS) $(CORE) Makefile
 	mkdir -p build
-	$(CC) $(CFLAGS) $(SANITIZERS) -Isrc/core -Isrc/fridged tools/host/replay-target.c src/fridged/portable.c src/fridged/storage.c src/core/forecast.c $(CORE) -o $@
+	$(CC) $(CFLAGS) -ffp-contract=off $(SANITIZERS) -Isrc/core -Isrc/fridged tools/host/replay-target.c src/fridged/portable.c src/fridged/storage.c src/core/forecast.c $(CORE) -o $@
