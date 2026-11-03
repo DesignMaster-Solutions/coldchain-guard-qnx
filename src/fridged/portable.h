@@ -18,6 +18,10 @@ bool fridge_uint(const char *text, unsigned minimum, unsigned maximum, unsigned 
 typedef struct { uint64_t t_ms; int32_t temp_mc; bool valid; } scenario_row;
 /* Strict CSV, optional exact header, first timestamp zero, strictly increasing.
  * Empty temperature means unavailable. Final row is held indefinitely. */
+typedef struct { size_t line; const char *reason; } scenario_error;
+/* Same parser, with optional diagnostics. line is one-based (EOF for empty input). */
+bool scenario_load_ex(FILE *f, scenario_row *rows, size_t capacity, size_t *count,
+                      scenario_error *error);
 bool scenario_load(FILE *f, scenario_row *rows, size_t capacity, size_t *count);
 scenario_row scenario_sample(const scenario_row *rows, size_t count, uint64_t t_ms);
 /* One complete command per write, all three keys required, arbitrary order.

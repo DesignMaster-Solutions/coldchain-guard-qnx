@@ -9,7 +9,7 @@ Deadline: December 15, 2026, 2:00 pm ET. Every milestone ends with a commit and 
 | M2 | `fridged` — done 2026-11-02 (host and QNX target) | Resource manager registers `/dev/fridge0`; `cat /dev/fridge0` prints temperature and state; writing to it changes the limits; the simulated sensor reads scenario files |
 | M3 | Timing — done 2026-11-02 (host and QNX target) | Sampler runs on a timer pulse at a fixed priority; the alarm fires within its own deadline while a lower-priority CPU hog runs (this checks our deadline, it is not a benchmark of QNX) |
 | M4 | Resilience — done 2026-11-02 (host and QNX target) | After `kill -9 fridged` SLM restarts it; the audit log records the gap explicitly and the chain still verifies |
-| M5 | Host tool | `fgctl` replays a scenario on the target and verifies the audit chain from the host |
+| M5 | Host tool — done 2026-11-02 (host and QNX target) | `fgctl` replays a scenario on the target and verifies the audit chain from the host |
 | M6 | Delivery | Build and run instructions (SDP version, target, toolchain), codelab, demo video under 3 minutes, Devpost submission |
 
 ## M1 contract and verification
@@ -77,6 +77,73 @@ Deadline: December 15, 2026, 2:00 pm ET. Every milestone ends with a commit and 
 - Target green: `build-vm.sh` plus `run-vm.sh` on QNX 8.0.0 x86_64 QEMU prints all four markers (`core tests`, `m2`, `m3`, `m4`, each `rc=0`) and runner exit 0. Target red: a separate source/image copy changes only the SLM repair action to `none`; M0–M3 pass, M4 prints `coldchain: m4 FAILED`, runner exit 1. Images are restricted to `~/Backups/impressora/qnx/vm-x86_64-m4` and `vm-x86_64-m4-mutant`. Commands, return codes and console evidence are in `~/Backups/impressora/qnx/m4-proof/result.txt`, outside git.
 - Limits: one injected process death, not a power-cut/storage fault campaign, repeated crash storm, stalled-process watchdog or supervisor self-recovery test. The boot log lives in volatile `/tmp`; no persistent media, directory-entry durability or storage-controller guarantees are established. Locking is advisory and assumes cooperating writers and a stable private pathname. Truncation and gap append are not a transaction: a second crash during recovery can lose the discarded-byte disclosure or leave another partial gap; the next successful resume still declares an unknown interval. Hashes detect corruption, not malicious rewrite/tail removal without an external trusted anchor. Physical sensing, notifications and medical suitability remain unverified. No measured restart time, latency, jitter or QNX performance comparison is published.
 
+## M5 host tool
+
+- `build/fgctl verify <audit.bin>` is portable C11, using `audit_verify_file` from
+  the existing core (which shares `audit_verify_next` with `audit_verify`), never
+  an independent verifier. It snapshots input to a private temporary file before
+  verification and summary, so the summary describes the bytes verified. RAM is
+  bounded; temporary disk space is proportional to the input. Verify a stopped
+  writer/export: snapshotting a live file is not an atomic filesystem snapshot.
+- Exit 0 means the complete chain verifies, including an empty file (explicitly
+  zero records, no observations, no first/last time). Exit 1 means broken sequence,
+  link, hash or partial tail, with the first zero-based bad index. Any size not
+  divisible by 216 is corruption, including a 1–215-byte file. Suffix length is
+  reported, input is never changed. This preserves M4 policy: only storage resume
+  can discard an incomplete suffix after validating the prefix, disclosing it in
+  a gap; verify cannot silently claim that partial input is intact. Exit 2 means
+  usage or file/snapshot I/O failure.
+- Summary counts all 11 types individually plus unknown types, prints first/last
+  timestamps in record order, escaped gap details, and excursion starts/ends.
+  Gaps terminate open episodes with unknown end and increment the session; EOF
+  reports an unclosed episode. Process-relative clocks are not comparable across
+  gaps; zero in a gap is a placeholder. This verifies chain integrity, not the
+  semantic truth of a measurement or medical safety.
+- `fgctl check-scenario <csv>` uses the same `scenario_load_ex` implementation as
+  the existing `scenario_load` wrapper. Capacity remains 4096 rows and all previous
+  CSV rules remain; added diagnostics identify the one-based line and reason.
+  Returns 0 valid, 1 invalid, 2 usage/file error. No duplicate CSV parser.
+- `tools/host/fgctl-replay.sh <csv> <new-vm-dir> [timeout-seconds]` checks the CSV,
+  copies it into a new external VM directory, builds with the existing SDK volume,
+  boots and verifies the serial transfer. Existing VM directories are refused;
+  `build-vm.sh` also refuses an existing image output. Direct builds default to
+  `tests/m5-scenario.csv`. Snapshot-mode QEMU preserves the new base disk.
+- Target replay after forecast uses production alarm, forecast, portable and
+  storage modules. It steps simulated CSV time once per row, using default alarm
+  and forecast settings; each sample is synchronized. It stops at the last row.
+  This is a deterministic target replay, not the live daemon timer path and not
+  a thermal/deadline test. It never sleeps for scenario time or extrapolates an
+  unobserved hold after EOF. Sparse scenarios only evaluate deadlines at rows.
+- Serial protocol v1: one BEGIN, hex DATA lines (up to 216 bytes each), one END
+  declaring total bytes and SHA-256 of the original file. The host extractor
+  rejects malformed/duplicate/incomplete framing, unexpected lines inside the
+  frame, empty exports and length/hash mismatches, then invokes the C verifier.
+  SHA-256 here checks transport, not authorship; an attacker replacing data and
+  checksum still needs a trusted external final anchor to be detected.
+- Host verification: `make -B test` with ASan/UBSan passes core, fridge, storage,
+  forecast and new fgctl tests. Fixtures are generated by the core, not committed
+  binaries. New tests cover every type count, gap detail, excursion bounds,
+  middle/last hash corruption, middle deletion, all 215 partial tails with input
+  preservation, wrong size, empty/missing files, CSV validity/line/capacity and
+  CLI exit codes. Serial tests exercise replay → export → extractor → actual
+  `fgctl` process and reject changed bytes, missing lines/end, duplicates and noise.
+- Host red: one production mutation in an external copy counts `AUDIT_GAP` as
+  `AUDIT_SAMPLE`; the new summary assertion fails (test process exit 134).
+- Target green: QNX 8.0.0 x86_64 QEMU passes the unchanged core, M2, M3, M4 and
+  forecast gates, followed by `coldchain: m5 serial rc=0` and host checksum/chain
+  verification (`coldchain: m5 host rc=0`, runner exit 0). The default fixture
+  produces 21 records, including 12 samples and two advisory transitions.
+- Target red: a separate source/image changes one exported byte after hashing
+  the original data. The original host runner rejects the SHA-256 mismatch,
+  prints `coldchain: m5 host rc=1` and exits 1, while all five earlier gates and
+  the target export completion marker pass. No mutant is committed.
+- Evidence: commands, return codes and excerpts in
+  `~/Backups/impressora/qnx/m5-proof/result.txt`. Images only in
+  `~/Backups/impressora/qnx/vm-x86_64-m5` and `vm-x86_64-m5-mutant`. No SDP files,
+  images or opaque binary fixtures enter git. No measured QNX performance,
+  latency, benchmark or comparison is published. Physical sensing, notifications,
+  durable-media crash guarantees and M6 submission/video remain outside M5.
+
 ## Log
 
 - 2026-11-02: repository created with scope and plan; non-commercial SDP 8.0 license requested on myQNX.
@@ -92,3 +159,5 @@ Deadline: December 15, 2026, 2:00 pm ET. Every milestone ends with a commit and 
 
 - 2026-11-02: predictive pre-alarm integrated into fridged: device trend/slope/ETA, validated production defaults, gap/limit resets and transition-only audit hints; host and five QNX boot gates green, separate host-format and target-per-sample-hint mutants red. M5–M6 remain open.
 - 2026-11-02: pre-alarm review: the forecast boot gate now checks that the trend is judged against the limits in force after a device write, which closes a surviving startup-limits mutant.
+
+- 2026-11-02: M5 delivered: portable fgctl audit summary/CSV diagnostics, deterministic QNX scenario replay and checksummed serial export verified on the host; five previous gates plus M5 pass, external host count and target serial-byte mutants fail. M6 remains open; no QNX performance results published.

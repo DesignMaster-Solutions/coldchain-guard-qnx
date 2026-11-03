@@ -10,3 +10,6 @@ qnx800/
 output/
 .DS_Store
 *.run
+
+# Python host-tool caches
+__pycache__/

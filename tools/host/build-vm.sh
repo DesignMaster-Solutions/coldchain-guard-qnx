@@ -7,7 +7,12 @@ set -euo pipefail
 # shellcheck disable=SC1091
 source "$HOME/qnx800/qnxsdp-env.sh" >/dev/null
 ARCH=${ARCH:-x86_64}
+# Never build over a previously generated image.
+if [ -e /vm/output ]; then echo "refusing existing image output" >&2; exit 2; fi
 mkdir -p /vm/bin /vm/local/snippets
+if [ ! -f /vm/replay.csv ]; then cp /work/tests/m5-scenario.csv /vm/replay.csv; fi
+qcc -Vgcc_nto"$ARCH" -std=c11 -Wall -Wextra -Werror -O2 -I/work/src/core -I/work/src/fridged \
+  /work/tools/host/replay-target.c /work/src/fridged/portable.c /work/src/fridged/storage.c /work/src/core/*.c -o /vm/bin/coldchain_replay
 qcc -Vgcc_nto"$ARCH" -std=c11 -Wall -Wextra -Werror -O2 -I/work/src/core \
   /work/tests/test_core.c /work/src/core/alarm.c /work/src/core/audit.c /work/src/core/sha256.c \
   -o /vm/bin/test_core
@@ -29,6 +34,8 @@ echo "[perms=555] bin/coldchain_test_core=/vm/bin/test_core" > /vm/local/snippet
 echo "[perms=555] bin/slm=$QNX_TARGET/$ARCH/usr/sbin/slm" >> /vm/local/snippets/system_files.custom
 echo "[perms=555] bin/slmctl=$QNX_TARGET/$ARCH/bin/slmctl" >> /vm/local/snippets/system_files.custom
 cat >> /vm/local/snippets/system_files.custom <<'FILES'
+[perms=555] bin/coldchain_replay=/vm/bin/coldchain_replay
+[perms=444] etc/replay.csv=/vm/replay.csv
 [perms=555] bin/coldchain_test_forecast=/vm/bin/test_forecast_target
 [perms=444] etc/forecast-scenario.csv=/work/tests/forecast-scenario.csv
 [perms=555] bin/coldchain_test_resilience=/vm/bin/test_resilience_target
@@ -83,6 +90,11 @@ if [ "$forecast_rc" = 0 ]; then
     echo "coldchain: forecast rc=0"
 else
     echo "coldchain: forecast FAILED"
+fi
+if /system/bin/coldchain_replay /system/etc/replay.csv /tmp/m5-audit.bin; then
+    echo "coldchain: m5 serial rc=0"
+else
+    echo "coldchain: m5 serial FAILED"
 fi
 SH
 cd /vm

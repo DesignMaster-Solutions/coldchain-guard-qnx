@@ -46,29 +46,46 @@ bool fridge_command(const char *text, size_t length, alarm_config *config)
     return true;
 }
 
+static bool scenario_fail(scenario_error *error, size_t line, const char *reason)
+{
+    if (error) *error = (scenario_error){line, reason};
+    return false;
+}
 bool scenario_load(FILE *f, scenario_row *rows, size_t capacity, size_t *count)
 {
-    if (!f || !rows || !count) return false;
+    return scenario_load_ex(f,rows,capacity,count,NULL);
+}
+bool scenario_load_ex(FILE *f, scenario_row *rows, size_t capacity, size_t *count,
+                      scenario_error *error)
+{
+    if (error) *error = (scenario_error){0,NULL};
+    if (!f || !rows || !count) return scenario_fail(error,0,"invalid parser argument");
     char line[128]; size_t n = 0, lines = 0;
     while (fgets(line, sizeof(line), f)) {
         ++lines;
         size_t len = strlen(line);
-        if (len == sizeof(line) - 1) return false;
+        if (len == sizeof(line) - 1) return scenario_fail(error,lines,"line too long");
         while (len && (line[len-1] == '\n' || line[len-1] == '\r')) line[--len] = 0;
         if (lines == 1 && !strcmp(line, "t_ms,temp_mc")) continue;
-        if (n == capacity || line[0] < '0' || line[0] > '9') return false;
+        if (n == capacity) return scenario_fail(error,lines,"row capacity exceeded");
+        if (line[0] < '0' || line[0] > '9') return scenario_fail(error,lines,"expected unsigned timestamp");
         errno = 0; char *end;
         uintmax_t t = strtoumax(line, &end, 10);
-        if (errno || t > UINT64_MAX || *end != ',' || (!n && t != 0) || (n && t <= rows[n-1].t_ms)) return false;
+        if (errno || t > UINT64_MAX || *end != ',')
+            return scenario_fail(error,lines,"invalid timestamp or missing comma");
+        if (!n && t != 0) return scenario_fail(error,lines,"first timestamp must be zero");
+        if (n && t <= rows[n-1].t_ms) return scenario_fail(error,lines,"timestamps must increase strictly");
         scenario_row row = { .t_ms = (uint64_t)t };
         char *temp = end + 1;
         if (*temp) {
-            if (!integer(temp, &end, &row.temp_mc) || *end) return false;
+            if (!integer(temp, &end, &row.temp_mc) || *end)
+                return scenario_fail(error,lines,"expected int32 temperature or empty field");
             row.valid = true;
         }
         rows[n++] = row;
     }
-    if (ferror(f) || !n) return false;
+    if (ferror(f)) return scenario_fail(error,lines+1,"file read error");
+    if (!n) return scenario_fail(error,lines+1,"no scenario rows");
     *count = n;
     return true;
 }
