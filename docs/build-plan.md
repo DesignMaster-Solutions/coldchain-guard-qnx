@@ -149,8 +149,12 @@ Deadline: December 15, 2026, 2:00 pm ET. Every milestone ends with a commit and 
   requires the received audit to be byte-identical, reporting the first differing
   record index. The host test covers the truncated frame (accepted without the
   reference, rejected at record index 20 with it), and an extractor that ignores
-  the reference fails it. The QNX console of the unmodified image passes:
-  `replay OK: target audit is byte-identical to the host replay (21 records)`.
+  the reference fails it. On QNX, the unmodified image passes the new runner
+  (`replay OK: target audit is byte-identical to the host replay (21 records)`,
+  exit 0). A separate image with the one-row replay mutation passes all six gates
+  of the previous runner (exit 0, 18 of 21 records, excursion end not observed)
+  and fails the new one (`replay MISMATCH: ... at record index=18 (target 18
+  records, host 21)`, exit 1). No mutant is committed.
 - Evidence: commands, return codes and excerpts in
   `~/Backups/impressora/qnx/m5-proof/result.txt`. Images only in
   `~/Backups/impressora/qnx/vm-x86_64-m5` and `vm-x86_64-m5-mutant`. No SDP files,
