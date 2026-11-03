@@ -107,10 +107,22 @@ static int fridge_write(resmgr_context_t *ctp, io_write_t *msg, struct fridge_oc
     if ((size_t)ctp->info.srcmsglen < (size_t)ctp->offset + sizeof(msg->i) + n) return EBADMSG;
     char buf[128];
     if (resmgr_msgget(ctp,buf,n,sizeof(msg->i)) != (int)n) return EIO;
-    if (!fridge_command(buf,n,&state.config)) return EINVAL;
-    forecast_reset(&prediction_window);
-    evaluate_forecast(now_ms() - start_ms);
-    if (!fridge_log_sync(log_file)) fatal("forecast reset sync");
+    char who[ALARM_WHO_SIZE];
+    if (fridge_ack_command(buf,n,who)) {
+        alarm_result result;
+        if (!alarm_ack(&state,now_ms() - start_ms,who,&result)) return EINVAL;
+        for (size_t i = 0; i < result.count; ++i) {
+            audit_record record;
+            if (!audit_append_event(&chain,&record,&result.events[i]) ||
+                !audit_write(log_file,&record)) fatal("ack audit append");
+        }
+        if (!fridge_log_sync(log_file)) fatal("ack sync");
+    } else {
+        if (!fridge_command(buf,n,&state.config)) return EINVAL;
+        forecast_reset(&prediction_window);
+        evaluate_forecast(now_ms() - start_ms);
+        if (!fridge_log_sync(log_file)) fatal("forecast reset sync");
+    }
     ocb->base.attr->flags |= IOFUNC_ATTR_MTIME | IOFUNC_ATTR_CTIME;
     _IO_SET_WRITE_NBYTES(ctp,n);
     return _RESMGR_NPARTS(0);

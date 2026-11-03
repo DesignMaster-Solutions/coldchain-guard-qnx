@@ -10,6 +10,25 @@ static bool load(const char *text, scenario_row *rows, size_t cap, size_t *n)
 }
 int main(void)
 {
+    char who[ALARM_WHO_SIZE] = "unchanged";
+    assert(fridge_ack_command("ack who=A",9,who) && !strcmp(who,"A"));
+    const char *name = "ack who=Team_1.A-z9\n";
+    assert(fridge_ack_command(name,strlen(name),who) && !strcmp(who,"Team_1.A-z9"));
+    char maximum[64] = "ack who=";
+    memset(maximum+8,'a',ALARM_WHO_SIZE-1); maximum[8+ALARM_WHO_SIZE-1] = 0;
+    assert(fridge_ack_command(maximum,strlen(maximum),who));
+    maximum[8+ALARM_WHO_SIZE-1] = 'a'; maximum[8+ALARM_WHO_SIZE] = 0;
+    const char *bad_ack[] = {"", "ack who=", "ack who=\n", "ack who=a b", "ack who=a\nb",
+        "ack who=a\n\n", "ack who=<script>", "ack who=a/b", "ack who=á", "ack who=a\r",
+        "ack who=a low=2000", "ACK who=a", " ack who=a", "ack who=a\t", maximum};
+    for (size_t i=0; i<sizeof(bad_ack)/sizeof(*bad_ack); ++i) {
+        strcpy(who,"unchanged");
+        assert(!fridge_ack_command(bad_ack[i],strlen(bad_ack[i]),who));
+        assert(!strcmp(who,"unchanged"));
+    }
+    assert(!fridge_ack_command("ack who=a\0b",11,who));
+    assert(!fridge_ack_command(NULL,9,who));
+    assert(!fridge_ack_command("ack who=a",9,NULL));
     unsigned priority = FRIDGE_PRIORITY_DEFAULT;
     assert(fridge_uint("1",FRIDGE_PRIORITY_MIN,FRIDGE_PRIORITY_MAX,&priority) && priority == 1);
     assert(fridge_uint("63",FRIDGE_PRIORITY_MIN,FRIDGE_PRIORITY_MAX,&priority) && priority == 63);
@@ -59,7 +78,7 @@ int main(void)
     assert(alarm_step(&a,123,5000,true,&r)); char buf[FRIDGE_TEXT_SIZE];
     forecast_result f = {FORECAST_UNKNOWN,0,0};
     assert(fridge_format(buf,sizeof(buf),&a,&f) > 0);
-    assert(!strcmp(buf,"temp_mc=5000 valid=1 alarm=0 level=0 low=2000 high=8000 hyst=500 sample_ms=123 last_valid_ms=123 trend=unknown slope_mc_per_min=0 eta_s=-1\n"));
+    assert(!strcmp(buf,"temp_mc=5000 valid=1 alarm=0 level=0 ack=0 low=2000 high=8000 hyst=500 sample_ms=123 last_valid_ms=123 trend=unknown slope_mc_per_min=0 eta_s=-1\n"));
     assert(fridge_format(buf,4,&a,&f) == -1);
     assert(alarm_step(&a,120123,0,false,&r));
     assert(fridge_format(buf,sizeof(buf),&a,&f)>0 && strstr(buf,"valid=0 alarm=1"));

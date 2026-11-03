@@ -23,13 +23,14 @@ for ((i = 0; i < T; i++)); do
   sleep 1
 done
 sleep 2 # let the last lines reach the log
-tr -d '\r' < "$LOG" | grep -vE '^([[:space:]]*$|FGCTL-DATA )' | tail -40
+tr -d '\r' < "$LOG" | grep -vE '^([[:space:]]*$|FGCTL-DATA |M7-DATA )' | tail -40
 grep -q "coldchain: core tests rc=0" "$LOG"
 grep -q "coldchain: m2 rc=0" "$LOG"
 grep -q "coldchain: m3 rc=0" "$LOG"
 grep -q "coldchain: m4 rc=0" "$LOG"
 grep -q "coldchain: forecast rc=0" "$LOG"
 grep -q "coldchain: m5 serial rc=0" "$LOG"
+grep -q "coldchain: ack rc=0" "$LOG"
 rc=0
 # A valid chain cannot reveal lost trailing records: the host replay of the same CSV must give the same bytes.
 rm -f output/m5-reference.bin
@@ -39,3 +40,8 @@ if [ "$rc" = 0 ]; then
 fi
 echo "coldchain: m5 host rc=$rc"
 [ "$rc" = 0 ] || exit 1
+
+# Reuse the checked transfer protocol for the live M7 audit, separately from M5.
+sed -n 's/^M7-/FGCTL-/p' "$LOG" > output/m7-serial.out
+python3 "$ROOT/tools/host/fgctl-extract.py" output/m7-serial.out output/m7-audit.bin "$ROOT/build/fgctl"
+"$ROOT/build/fgctl" report output/m7-audit.bin > output/m7-report.html

@@ -121,9 +121,9 @@ int fridge_format(char *out, size_t capacity, const alarm_state *a, const foreca
     char prediction[128];
     if (fridge_forecast_format(prediction,sizeof(prediction),f) < 0) return -1;
     int n = snprintf(out, capacity,
-        "temp_mc=%" PRId32 " valid=%u alarm=%u level=%u low=%" PRId32
+        "temp_mc=%" PRId32 " valid=%u alarm=%u level=%u ack=%u low=%" PRId32
         " high=%" PRId32 " hyst=%" PRId32 " sample_ms=%" PRIu64 " last_valid_ms=%" PRIu64 " %s\n",
-        a->temperature_mc, (unsigned)a->temperature_valid, (unsigned)a->active, a->level,
+        a->temperature_mc, (unsigned)a->temperature_valid, (unsigned)a->active, a->level, (unsigned)a->acknowledged,
         a->config.low_mc, a->config.high_mc, a->config.hysteresis_mc, a->now_ms, a->last_valid_ms, prediction);
     return n < 0 || (size_t)n >= capacity ? -1 : n;
 }
@@ -141,5 +141,21 @@ bool fridge_uint(const char *text, unsigned minimum, unsigned maximum, unsigned 
     }
     if (value < minimum) return false;
     *out = value;
+    return true;
+}
+
+bool fridge_ack_command(const char *text, size_t length, char who[ALARM_WHO_SIZE])
+{
+    if (!text || !who || length < 9 || length > 8+ALARM_WHO_SIZE ||
+        memcmp(text,"ack who=",8)) return false;
+    if (text[length-1] == '\n') --length;
+    size_t n = length-8;
+    if (!n || n >= ALARM_WHO_SIZE) return false;
+    for (size_t i=8; i<length; ++i) {
+        unsigned char c = (unsigned char)text[i];
+        if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+              (c >= '0' && c <= '9') || c == '.' || c == '_' || c == '-')) return false;
+    }
+    memcpy(who,text+8,n); who[n] = 0;
     return true;
 }

@@ -28,12 +28,15 @@ qcc -Vgcc_nto"$ARCH" -std=c11 -Wall -Wextra -Werror -O2 -D_QNX_SOURCE -I/work/sr
   /work/tests/test_resilience_target.c /work/src/core/*.c -o /vm/bin/test_resilience_target
 qcc -Vgcc_nto"$ARCH" -std=c11 -Wall -Wextra -Werror -O2 -D_QNX_SOURCE -I/work/src/core -I/work/src/fridged \
   /work/tests/test_forecast_target.c /work/src/core/*.c -o /vm/bin/test_forecast_target
+qcc -Vgcc_nto"$ARCH" -std=c11 -Wall -Wextra -Werror -O2 -I/work/src/core -I/work/src/fridged \
+  /work/tests/test_ack_target.c /work/src/core/*.c -o /vm/bin/test_ack_target
 file /vm/bin/test_core /vm/bin/fridged /vm/bin/test_fridge_target
 echo "[perms=555] bin/coldchain_test_core=/vm/bin/test_core" > /vm/local/snippets/system_files.custom
 # SDK binaries are copied only into the local target image, never into git.
 echo "[perms=555] bin/slm=$QNX_TARGET/$ARCH/usr/sbin/slm" >> /vm/local/snippets/system_files.custom
 echo "[perms=555] bin/slmctl=$QNX_TARGET/$ARCH/bin/slmctl" >> /vm/local/snippets/system_files.custom
 cat >> /vm/local/snippets/system_files.custom <<'FILES'
+[perms=555] bin/coldchain_test_ack=/vm/bin/test_ack_target
 [perms=555] bin/coldchain_replay=/vm/bin/coldchain_replay
 [perms=444] etc/replay.csv=/vm/replay.csv
 [perms=555] bin/coldchain_test_forecast=/vm/bin/test_forecast_target
@@ -90,6 +93,24 @@ if [ "$forecast_rc" = 0 ]; then
     echo "coldchain: forecast rc=0"
 else
     echo "coldchain: forecast FAILED"
+fi
+# M7 uses live device I/O, then a real restart of the same audit for the report.
+/system/bin/fridged -s /system/etc/m3-scenario.csv -p 100 -w 100 -g 1 -e 1 -l /tmp/m7-audit.bin &
+ack_pid=$!
+ack_rc=1
+if waitfor /dev/fridge0 20 && /system/bin/coldchain_test_ack live; then ack_rc=0; fi
+kill "$ack_pid"
+wait "$ack_pid" 2>/dev/null
+/system/bin/fridged -s /system/etc/m3-scenario.csv -p 100 -w 100 -g 1 -e 1 -l /tmp/m7-audit.bin &
+ack_pid=$!
+if ! waitfor /dev/fridge0 20 || ! /system/bin/coldchain_test_ack resumed; then ack_rc=1; fi
+kill "$ack_pid"
+wait "$ack_pid" 2>/dev/null
+if ! /system/bin/coldchain_test_ack /tmp/m7-audit.bin; then ack_rc=1; fi
+if [ "$ack_rc" = 0 ]; then
+    echo "coldchain: ack rc=0"
+else
+    echo "coldchain: ack FAILED"
 fi
 if /system/bin/coldchain_replay /system/etc/replay.csv /tmp/m5-audit.bin; then
     echo "coldchain: m5 serial rc=0"

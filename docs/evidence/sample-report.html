@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cold-Chain Guard | Audit report</title><style>*{box-sizing:border-box}body{font:17px/1.6 system-ui,sans-serif;color:#182f39;background:#f6f7f5;margin:0}main{max-width:850px;margin:auto;padding:32px 24px}h1{font-size:2rem;line-height:1.2}h2{font-size:1.25rem}header{border-top:6px solid #14655e;padding-top:12px}.verified{border-left:5px solid #14655e;background:#e7f1ed;padding:16px}.episode{border-left:3px solid #b5c4c5;padding:0 16px;margin:16px 0;break-inside:avoid}section{border-bottom:1px solid #b5c4c5;padding:16px 0}.summary{font-weight:600}ol{list-style:none;padding:0}li{padding:12px 0;border-top:1px solid #d3dddc;break-inside:avoid}time{display:inline-block;font-variant-numeric:tabular-nums;min-width:5.5em}small{display:block;font-size:.8rem;color:#41565d;overflow-wrap:anywhere}.gap{border:3px dashed #855b11;background:#fff4d5;padding:16px;margin:24px 0;break-inside:avoid}.gap h2{margin-top:0}footer{font-size:.85rem;border-top:2px solid #182f39;margin-top:32px;padding-top:16px}@media(max-width:480px){main{padding:20px 16px}h1{font-size:1.65rem}time{display:block}}@media print{body{background:white;color:black}main{max-width:none;padding:0}.verified,.gap{background:white}h2{break-after:avoid}small{color:black}footer{position:static}}</style></head><body><main><header><p>COLD-CHAIN GUARD / QNX</p><h1>Audit report</h1></header>
+<div class=verified><strong>Chain OK</strong> · Records: 49<p>Integrity only: no trusted external anchor; tail removal/full rewrite cannot be detected.</p></div>
+<p>Times are h:mm:ss since the start of each process, rounded down to seconds, not calendar dates. Clock and alarm state restart at every unknown interval. Read events in record order; times from different sessions cannot be compared.</p><p>Acknowledgement is a local device action. It does not establish that anyone was notified. Chain integrity does not establish the truth of recorded claims.</p>
+<section><h2>Session 1</h2>
+<p>Observed record span: 0:00:00 to 0:00:03.</p>
+<p class=summary>Samples: 37; valid: 37; unavailable: 0; minimum: 5.000 °C; maximum: 9.000 °C.</p>
+<ol>
+<li><time>0:00:00</time> <strong>Temperature out of range</strong>; temperature: 9.000 °C<small>Recorded detail: valid=1 level=0 duration_ms=0 min_mc=9000 max_mc=9000 who=</small></li>
+<li><time>0:00:01</time> <strong>Alarm</strong>; temperature: 9.000 °C<small>Recorded detail: valid=1 level=0 duration_ms=1097 min_mc=9000 max_mc=9000 who=</small></li>
+<li><time>0:00:01</time> <strong>Escalation level 1</strong>; temperature: 9.000 °C<small>Recorded detail: valid=1 level=1 duration_ms=1097 min_mc=9000 max_mc=9000 who=</small></li>
+<li><time>0:00:01</time> <strong>Acknowledged by Clinic.Team_1</strong>; temperature: 9.000 °C<small>Recorded detail: valid=1 level=1 duration_ms=1100 min_mc=9000 max_mc=9000 who=Clinic.Team_1</small></li>
+</ol>
+<p>Excursion end: unknown (restart gap).</p>
+<h3>Excursions</h3>
+<article class=episode><h4>Excursion 1</h4><p>Start: 0:00:00.</p>
+<p>Acknowledged by Clinic.Team_1 at 0:00:01.</p>
+<p>End: unknown (restart gap); Duration: unknown.</p><p>Minimum: 9.000 °C; maximum: 9.000 °C (observed excursion readings only).</p></article>
+</section>
+<aside class=gap><h2>UNKNOWN INTERVAL</h2><p>Coverage between sessions is unknown. Clock and alarm state restart here. No outage duration or missing temperature can be inferred.</p><small>interval=unknown valid=0 discarded_bytes=0 clock=process-relative state=reset</small></aside>
+<section><h2>Session 2</h2>
+<p>Observed record span: 0:00:00 to 0:00:00.</p>
+<p class=summary>Samples: 6; valid: 6; unavailable: 0; minimum: 5.000 °C; maximum: 9.000 °C.</p>
+<ol>
+<li><time>0:00:00</time> <strong>Temperature out of range</strong>; temperature: 9.000 °C<small>Recorded detail: valid=1 level=0 duration_ms=0 min_mc=9000 max_mc=9000 who=</small></li>
+</ol>
+<p>Excursion end: not observed before end of file.</p>
+<h3>Excursions</h3>
+<article class=episode><h4>Excursion 1</h4><p>Start: 0:00:00.</p>
+<p>End: not observed before end of file; Duration: unknown.</p><p>Minimum: 9.000 °C; maximum: 9.000 °C (observed excursion readings only).</p><p>not acknowledged</p></article>
+</section>
+<p>Not recorded by this prototype: calendar date and time, room temperature, vaccine inventory, actions taken.</p><footer>Simulated sensor. Prototype, not a medical device or a medical record.</footer></main></body></html>

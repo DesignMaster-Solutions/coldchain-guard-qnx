@@ -27,6 +27,8 @@ scenario_row scenario_sample(const scenario_row *rows, size_t count, uint64_t t_
 /* One complete command per write, all three keys required, arbitrary order.
  * Invalid input leaves config unchanged; preserves all non-limit settings. */
 bool fridge_command(const char *text, size_t length, alarm_config *config);
+/* Exact ack who=<ASCII identifier>, optional final newline. Failure preserves who. */
+bool fridge_ack_command(const char *text, size_t length, char who[ALARM_WHO_SIZE]);
 /* Returns length excluding NUL, or -1 on insufficient storage. */
 int fridge_format(char *out, size_t capacity, const alarm_state *state, const forecast_result *prediction);
 /* ETA seconds rounded up; -1 explicitly means not applicable. */

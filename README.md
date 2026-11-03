@@ -151,6 +151,68 @@ unknown=0; excursion=1; temperature alarm=1; sensor failure=1; sensor recovery=1
 first_ms=0 last_ms=2040000 (record order; process-relative clocks reset at gaps)
 ```
 
+## M7 staff acknowledgement and inspector report
+
+An authorized local operator can acknowledge the active alarm through the same
+device. This records a name and suppresses escalation; it does not notify anyone,
+clear the underlying fault, authenticate the name, or reset the forecast window.
+Device writes still require the owner's permissions (root in this demo).
+
+```sh
+# On QNX, while fridged is running and alarm=1:
+printf 'ack who=Clinic.Team_1\n' > /dev/fridge0
+cat /dev/fridge0
+# On the host, using a stopped writer's audit or a checked export:
+make build/fgctl
+build/fgctl report /path/to/audit.bin > report.html
+# After a fresh image build and the standard acceptance boot:
+build/fgctl report "$VM_DIR/output/m7-audit.bin" > report.html
+```
+
+The exact command is `ack who=<name>`, optionally followed by one newline.
+Names contain 1–31 ASCII characters from `[A-Za-z0-9._-]`. An inactive alarm,
+duplicate acknowledgement or invalid name returns `EINVAL` without changing
+state. The original all-three-key limit command is unchanged. Recovery clears
+acknowledgement; a continuing fault re-arms after the existing 60-minute interval.
+A restart resets alarm and acknowledgement state and records an unknown gap.
+
+Reads now return `temp_mc`, `valid`, `alarm`, `level`, **`ack=0|1` immediately
+after `level`**, `low`, `high`, `hyst`, `sample_ms`, `last_valid_ms`, `trend`,
+`slope_mc_per_min` and `eta_s`. `ack=1` means locally acknowledged, not recovered.
+All time fields remain process-relative; invalid temperatures and forecast ETA
+retain the limits described above. An accepted ack is written to the audit and
+synchronized before the write returns.
+
+`report` emits one English HTML document with inline styling, no JavaScript
+or external resources. Open it locally on a phone or print it. It verifies
+a private snapshot of the complete chain **before emitting any HTML**: exit 0
+means success, 1 means corruption (including a partial tail), and 2 means a
+file/storage error. Failed verification leaves stdout empty; use `verify` for
+record-index diagnostics. Samples become per-session counts and observed extrema;
+events remain in record order. Each excursion includes its start, end, duration,
+minimum, maximum and acknowledgement names, or `not acknowledged`. An unfinished
+excursion has an unknown end at a gap or an unobserved end at EOF, with unknown
+complete duration. Recovery extrema exclude the recovery reading, following the
+core contract. Times are h:mm:ss since process start, rounded down to seconds,
+not calendar dates. An **UNKNOWN INTERVAL** separates sessions and declares the
+clock and alarm-state reset. Record text is escaped, including names and details.
+
+The report explicitly lists what is not recorded: calendar date and time, room
+temperature, vaccine inventory and actions taken. Integrity alone cannot detect
+valid tail removal or a total rewrite without a trusted external anchor; it does
+not establish the truth of recorded claims. This is a simulated-sensor prototype,
+not a medical device or medical record.
+
+The boot now additionally requires **`coldchain: ack rc=0`**. Its accelerated
+`m3-scenario` fixture uses `-g 1 -e 1`, checks local acknowledgement, freezes the
+ladder for more than two escalation periods, rejects duplicate/invalid names,
+and preserves the forecast. The daemon stops, restarts the same audit, then
+stops again before full verification: exactly one acknowledgement and one gap.
+The checked M7 serial export becomes `output/m7-audit.bin` and
+`output/m7-report.html`. Every previous gate, including M5 byte equality, remains
+mandatory. See [the real QNX sample report](docs/evidence/sample-report.html) and
+[the M7 verification evidence](docs/build-plan.md#m7-staff-acknowledgement-and-inspector-report).
+
 ## Predictive pre-alarm
 
 Device reads also contain `trend=unknown|steady|to_high|to_low|outside`, `slope_mc_per_min` and `eta_s`. ETA is seconds rounded up from the forecast at the newest kept reading, and is **-1 (not applicable)** except for `to_high`/`to_low`; zero in those categories means an immediate prediction at the core’s millisecond resolution. This is a sampled forecast, not a countdown between readings. UNKNOWN has fewer than six kept readings; OUTSIDE refers to the newest kept reading, not necessarily the current sample.

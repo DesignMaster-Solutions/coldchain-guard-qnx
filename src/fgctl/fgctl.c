@@ -19,32 +19,41 @@ static void detail(FILE *out, const uint8_t *p)
         else fprintf(out,"\\x%02x",p[i]);
     }
 }
-static int verify(FILE *f, FILE *out)
+int fgctl_snapshot(FILE *f, FILE **result, size_t *count, FILE *out)
 {
     /* A stable private snapshot prevents a writer changing the summary after
      * verification. It also bounds RAM independently of audit length. */
     FILE *snapshot = tmpfile();
-    if (!snapshot) { fputs("error: cannot create audit snapshot\n",out); return 2; }
+    if (!snapshot) { if (out) fputs("error: cannot create audit snapshot\n",out); return 2; }
     uint8_t block[4096]; size_t n, bytes = 0;
     while ((n = fread(block,1,sizeof(block),f)) != 0) {
         if (n > SIZE_MAX-bytes || fwrite(block,1,n,snapshot) != n) {
-            fclose(snapshot); fputs("error: snapshot write/size\n",out); return 2;
+            fclose(snapshot); if (out) fputs("error: snapshot write/size\n",out); return 2;
         }
         bytes += n;
     }
     if (ferror(f) || fflush(snapshot) || fseek(snapshot,0,SEEK_SET)) {
-        fclose(snapshot); fputs("error: audit read/seek\n",out); return 2;
+        fclose(snapshot); if (out) fputs("error: audit read/seek\n",out); return 2;
     }
     size_t bad;
     enum audit_status status = audit_verify_file(snapshot,&bad,NULL);
     if (status != AUDIT_OK) {
-        fprintf(out,"audit %s: first bad record index=%zu (zero-based)\n",
+        if (out) fprintf(out,"audit %s: first bad record index=%zu (zero-based)\n",
                 status == AUDIT_BROKEN ? "BROKEN" : "I/O error",bad);
-        if (bytes % AUDIT_RECORD_SIZE)
+        if (out && bytes % AUDIT_RECORD_SIZE)
             fprintf(out,"incomplete tail: %zu bytes; file unchanged (M4 resume alone may discard after prefix verification)\n",bytes % AUDIT_RECORD_SIZE);
         fclose(snapshot); return status == AUDIT_BROKEN ? 1 : 2;
     }
     if (fseek(snapshot,0,SEEK_SET)) { fclose(snapshot); return 2; }
+    *result = snapshot;
+    *count = bad;
+    return 0;
+}
+static int verify(FILE *f, FILE *out)
+{
+    FILE *snapshot; size_t bad;
+    int rc = fgctl_snapshot(f,&snapshot,&bad,out);
+    if (rc) return rc;
     static const char *names[] = {"unknown", "excursion", "temperature alarm", "sensor failure",
         "sensor recovery", "escalation", "acknowledgement", "rearm", "recovery", "restart gap", "sample", "forecast hint"};
     size_t counts[12] = {0}, session = 0;
@@ -81,13 +90,14 @@ static int verify(FILE *f, FILE *out)
 }
 int fgctl_run(int argc, char **argv, FILE *out)
 {
-    if (argc != 3 || (strcmp(argv[1],"verify") && strcmp(argv[1],"check-scenario"))) {
-        fputs("usage: fgctl verify <audit.bin> | check-scenario <scenario.csv>\n",out); return 2;
+    if (argc != 3 || (strcmp(argv[1],"verify") && strcmp(argv[1],"check-scenario") && strcmp(argv[1],"report"))) {
+        fputs("usage: fgctl verify <audit.bin> | report <audit.bin> | check-scenario <scenario.csv>\n",out); return 2;
     }
     FILE *f = fopen(argv[2],"rb");
-    if (!f) { fprintf(out,"error: cannot open %s\n",argv[2]); return 2; }
+    if (!f) { if (strcmp(argv[1],"report")) fprintf(out,"error: cannot open %s\n",argv[2]); return 2; }
     int rc;
     if (!strcmp(argv[1],"verify")) rc = verify(f,out);
+    else if (!strcmp(argv[1],"report")) rc = fgctl_report(f,out);
     else {
         scenario_row rows[SCENARIO_CAPACITY]; size_t count; scenario_error error;
         bool ok = scenario_load_ex(f,rows,SCENARIO_CAPACITY,&count,&error);

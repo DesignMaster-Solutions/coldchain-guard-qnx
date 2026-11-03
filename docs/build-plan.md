@@ -162,6 +162,91 @@ Deadline: December 15, 2026, 2:00 pm ET. Every milestone ends with a commit and 
   latency, benchmark or comparison is published. Physical sensing, notifications,
   durable-media crash guarantees and M6 submission/video remain outside M5.
 
+## M7 staff acknowledgement and inspector report
+
+- Device contract: `ack who=<name>` accepts 1–31 ASCII `[A-Za-z0-9._-]`
+  characters and an optional single final newline. The portable parser preserves
+  its output on invalid input; the limit parser is unchanged. The serialized
+  QNX write handler calls `alarm_ack`, appends every returned event and calls
+  `fridge_log_sync` before returning success. Inactive/duplicate/invalid ack
+  returns `EINVAL`. No forecast reset occurs. Read text adds `ack=0|1` immediately
+  after `level`. Device ownership authorizes writes; the supplied name is not
+  authenticated. Ack is local, not delivery of a notification or fault recovery.
+- Report contract: `fgctl report` shares the verifier's bounded-memory, private
+  snapshot path. It verifies the whole chain before emitting HTML; corruption
+  or partial tails return 1 with no stdout, file/storage errors return 2.
+  HTML escapes every record-derived text sink, including who and raw detail.
+  The self-contained English page has viewport and print styles, no script or
+  external resource, a record-count/chain banner and the literal verify limit.
+  Sessions are separated by distinct UNKNOWN INTERVAL blocks. Samples are
+  summarized by count, valid/unavailable and valid-reading min/max, never rows.
+  Event rows retain record order and use process-relative h:mm:ss, rounded down,
+  explicitly not calendar dates. Clock and alarm state reset across gaps.
+- Excursion cards show start, end, duration, observed min/max and each local
+  acknowledgement, or `not acknowledged`. Recovery duration/extrema use the
+  core event (recovery reading excluded). Incomplete excursions report unknown
+  end at a gap or unobserved end at EOF and unknown complete duration; their
+  extrema use observed valid excursion/sample readings only. Acknowledgements
+  never carry into the next session. Fixed missing-data disclosure:
+  "Not recorded by this prototype: calendar date and time, room temperature,
+  vaccine inventory, actions taken." Fixed footer: "Simulated sensor. Prototype,
+  not a medical device or a medical record." No claim of clinical compliance.
+- Host red/green: the new parser test first fails against a rejecting stub
+  (exit 134); implementation passes. The report test first fails without the
+  report command (exit 134); excursion-card additions fail against the earlier
+  report (exit 134). `make -B test` passes with ASan/UBSan (exit 0), including
+  existing core acknowledgement/re-arm at 60 minutes, strict names/boundaries,
+  unchanged parser output on rejection, read format, report ordering, per-session
+  summaries, complete and incomplete excursions, gap resets, negative Celsius,
+  escaped forged `<script>` who with a valid chain, escaped detail, tamper with
+  empty stdout, all 215 partial-tail sizes, empty/missing input and all M1–M5 tests.
+- External host mutants (none committed): permitting `/` in ack names fails
+  `test_fridge` (exit 134); replacing the report HTML escaping sink with raw
+  `fputs` fails `test_fgctl` (exit 134); skipping failed snapshot verification
+  only for report fails its corruption/no-output assertion (exit 134). A further
+  mutant omitting acknowledgement from excursion cards while keeping it in the
+  timeline fails the card-scoped assertion (exit 134).
+- Target acceptance: a new QNX 8.0.0 x86_64 image, cross-compiled with the existing
+  SDP volume and strict `qcc` warnings. `test_ack_target` runs against live
+  `fridged` on `m3-scenario.csv`, period 100 ms, forecast spacing 100 ms, grace
+  and escalation one second. It waits for active alarm with a level below 3,
+  rejects an invalid name before ack, acknowledges as `Clinic.Team_1`, reads
+  `ack=1`, rejects duplicate/invalid ack and requires the same level and populated
+  forecast for 2500 ms (more than two configured escalation periods). The 20-second
+  readiness and 30-second observer bounds are acceptance limits, not measurements.
+  The boot script stops/reaps the daemon, restarts the same audit, verifies reset
+  acknowledgement and new samples, stops/reaps again, then verifies the complete
+  stable audit with exactly one acknowledgement (exact name), one gap and samples
+  on both sides. No still-running writer is used for the final check.
+- Target green: standard `build-vm.sh` and `run-vm.sh` exit 0; markers for core,
+  M2, M3, M4, forecast, ack and M5 serial all read `rc=0`. Host M5 verification
+  still requires byte equality with its 21-record deterministic replay and passes.
+  M7 additionally exports a separate checksummed serial frame, reuses the existing
+  host extractor, verifies the chain and generates `output/m7-report.html`.
+- External target mutants, separate source copies and images (none committed):
+  accepting the device command without calling `alarm_ack` fails the ack gate;
+  accepting a second ack without the core rejection also fails it. Each runner
+  exits 1 with `coldchain: ack FAILED`, while core/M2/M3/M4/forecast and M5 serial
+  remain green. The standard runner is used unchanged for both mutations.
+- Sample provenance: `docs/evidence/sample-report.html` was generated with the
+  final host `fgctl report` from the real green QNX boot's `output/m7-audit.bin`.
+  It contains 49 records: 43 samples, two excursions, one temperature alarm, one
+  escalation, one acknowledgement by `Clinic.Team_1` and one restart gap.
+  SHA-256 of the checked binary export:
+  `aa5b5f463a320d793299455d847df050ed103f251d16b7c481e57d2129b5cf43`.
+  Reproduce with the README fresh-image build/boot commands and
+  `build/fgctl report "$VM_DIR/output/m7-audit.bin" > report.html`.
+  Live timestamps and sample counts can differ; M5 alone is deterministic.
+  The final HTML was read and checked by text. `browse cf shot` on its local
+  file URL returned HTTP 422; no login or alternate browser was used, so visual
+  rendering on a phone and printed paper are not claimed as verified.
+- Limits: no trusted external anchor; valid tail deletion or total rewrite is
+  undetectable. Hash integrity does not validate record semantics or actor identity.
+  A gap never supplies an outage duration or missing temperature. `/tmp` remains
+  volatile, so synchronization is not durable-media/power-loss proof. No physical
+  sensor, notification delivery, medical suitability or clinical compliance claim.
+  No QNX benchmark, latency result or performance measurement is published.
+
 ## Log
 
 - 2026-11-02: repository created with scope and plan; non-commercial SDP 8.0 license requested on myQNX.
@@ -180,3 +265,5 @@ Deadline: December 15, 2026, 2:00 pm ET. Every milestone ends with a commit and 
 
 - 2026-11-02: M5 delivered: portable fgctl audit summary/CSV diagnostics, deterministic QNX scenario replay and checksummed serial export verified on the host; five previous gates plus M5 pass, external host count and target serial-byte mutants fail. M6 remains open; no QNX performance results published.
 - 2026-11-02: M5 review: whole-line count assertions close a surviving uncounted-recovery mutant; the runner now requires the QNX replay audit to be byte-identical to the host replay of the same CSV, which closes the self-consistent truncated export that the chain and checksum accept.
+
+- 2026-11-02: M7 delivered: local device acknowledgement, mandatory QNX ack/restart gate and verified standalone inspector HTML with excursion summaries and missing-data disclosure. Host suite and original boot pass; parser/escaping/verification host mutants and no-ack/duplicate-ack target mutants fail. Sample report comes from the real QNX audit; M5 replay remains byte-identical.

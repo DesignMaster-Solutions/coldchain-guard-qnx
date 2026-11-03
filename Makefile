@@ -31,7 +31,7 @@ build/test_forecast: tests/test_forecast.c src/core/forecast.c src/core/forecast
 	mkdir -p build
 	$(CC) $(CFLAGS) $(SANITIZERS) -Isrc/core tests/test_forecast.c src/core/forecast.c -o $@
 
-FGCTL = src/fgctl/fgctl.c src/fridged/portable.c $(CORE)
+FGCTL = src/fgctl/fgctl.c src/fgctl/report.c src/fridged/portable.c $(CORE)
 FGCTL_HEADERS = src/core/forecast.h src/fgctl/fgctl.h src/fridged/portable.h src/fridged/storage.h $(HEADERS)
 
 build/fgctl: src/fgctl/main.c $(FGCTL) $(FGCTL_HEADERS) Makefile
