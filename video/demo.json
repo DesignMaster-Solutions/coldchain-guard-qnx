@@ -1,0 +1,125 @@
+{
+  "brand": "Cold-Chain Guard | Design Master Solutions, LLC | QEMU + simulated sensor",
+  "voice": "Samantha",
+  "rate": 186,
+  "bg": "#0d1c27",
+  "accent": "#38bdb0",
+  "out": "/Users/alandebortolo/Backups/impressora/qnx/m6/demo.mp4",
+  "scenes": [
+    {
+      "title": "A fridge alarm must explain the gaps",
+      "lines": [
+        "Cold-Chain Guard for QNX 8.0",
+        "Simulated sensor • QNX 8.0.0 x86_64 in QEMU",
+        "Recorded target console; not a new QEMU boot"
+      ],
+      "mono": [
+        "coldchain: m2 rc=0",
+        "coldchain: m4 rc=0"
+      ],
+      "say": "A fridge alarm must explain what happened, and what it could not observe. We built Cold Chain Guard on QNX eight. These are actual saved QNX console results for the device and crash recovery checks. Our sensor is simulated. This is a software prototype, not a medical device."
+    },
+    {
+      "title": "One device, ordinary file operations",
+      "lines": [
+        "Read /dev/fridge0: temperature, validity, alarm and advice",
+        "Write all limits atomically; reject invalid input",
+        "QNX resource manager + monotonic timer pulses"
+      ],
+      "mono": [
+        "coldchain: initial device read verified",
+        "coldchain: write and EINVAL atomicity verified"
+      ],
+      "say": "The resource manager exposes slash dev slash fridge zero. Reading returns a snapshot of temperature, validity, alarm state and advisory trend. Writing changes all limits atomically. Invalid input changes nothing. A monotonic timer delivers pulses to the dispatch loop, where sampling and device requests are serialized."
+    },
+    {
+      "title": "Scheduling and recovery, checked on QNX",
+      "lines": [
+        "Fixed FIFO priority for dispatch and timer pulses",
+        "SLM restarts an abnormally terminated process",
+        "Pass/fail application checks; no QNX performance results"
+      ],
+      "mono": [
+        "coldchain: local alarm deadline PASS",
+        "coldchain: escalation deadline PASS",
+        "coldchain: m3 rc=0",
+        "coldchain: new serving process and restart acceptance PASS",
+        "coldchain: m4 rc=0"
+      ],
+      "say": "The sampler and pulses use explicit fixed priority. Our application deadline checks pass under lower priority CPU load. SLM restarts an abnormally terminated daemon, and the test reads the device from a different serving process. The audit declares an unknown gap. These are fixture acceptance checks, not QNX performance results."
+    },
+    {
+      "title": "Advice cannot silence an alarm",
+      "lines": [
+        "Explainable linear trend toward the configured limits",
+        "Sensor gaps and accepted limit writes reset the window",
+        "Alarm logic remains authoritative"
+      ],
+      "mono": [
+        "coldchain: forecast rc=0"
+      ],
+      "say": "The forecast fits a linear trend and offers advice about approaching a limit. A sensor gap or accepted limit change resets its window. Advice cannot delay, suppress or clear the alarm. The saved QNX forecast gate passed. Physical sensing and clinical suitability have not been validated."
+    },
+    {
+      "title": "Run the portable checks again",
+      "lines": [
+        "Executed on the host during this render",
+        "C11 • strict warnings • AddressSanitizer + UndefinedBehaviorSanitizer",
+        "Selected literal output; full command exit checked separately"
+      ],
+      "mono_cmd": "make -B test",
+      "mono_cwd": "..",
+      "mono_grep": [
+        "PASS SHA-256",
+        "PASS hysteresis",
+        "PASS storage",
+        "PASS forecast"
+      ],
+      "say": "Now we run the portable checks on the host, using strict compiler warnings and sanitizers. These selected lines are real command output. The suite covers the state machine, device protocol, storage, forecast and host tools. Host execution supports the saved target evidence; it does not replace execution on QNX."
+    },
+    {
+      "title": "Replay the same input on the host",
+      "lines": [
+        "Fresh host reference from the target scenario",
+        "CSV timestamps are synthetic input, not measured performance",
+        "M5 replay steps rows; it is separate from the live timer path"
+      ],
+      "mono_cmd": "build/fgctl check-scenario tests/m5-scenario.csv && build/replay_target tests/m5-scenario.csv \"$REF\"",
+      "mono_cwd": "..",
+      "mono_grep": [
+        "scenario OK",
+        "replay:"
+      ],
+      "say": "We validate the same scenario used on the target and generate a fresh host reference. This deterministic replay steps the production modules once per CSV row. Scenario timestamps are synthetic input, not measured platform performance. The live timer and resource manager have their own target tests."
+    },
+    {
+      "title": "Verify the real QNX serial export",
+      "lines": [
+        "Saved QNX export: checksum, audit chain, host reference",
+        "The comparison also rejects a self-consistent truncated replay"
+      ],
+      "mono_cmd": "python3 tools/host/fgctl-extract.py \"$QNX_CONSOLE\" \"$AUDIT\" build/fgctl \"$REF\"",
+      "mono_cwd": "..",
+      "mono_grep": [
+        "serial OK:",
+        "audit OK:",
+        "replay OK:"
+      ],
+      "say": "Next we extract the real QNX serial export. The checksum verifies transfer, the audit verifier checks the chain, and the fresh host replay must match every byte. This closes the truncated replay case. A live audit still needs an external trusted anchor to detect a rewritten chain or valid tail removal."
+    },
+    {
+      "title": "Reproduce it. Then take it to hardware.",
+      "lines": [
+        "Source: github.com/DesignMaster-Solutions/coldchain-guard-qnx",
+        "Codelab: github.com/DesignMaster-Solutions/qnx8-resmgr-codelab",
+        "Next: physical probe, persistent media, external notifications",
+        "Prototype only • no vaccine-safety or clinical claim"
+      ],
+      "mono": [
+        "audit OK: records=21",
+        "coldchain: m5 host rc=0"
+      ],
+      "say": "The verified target replay contains twenty one records. Our public source and companion codelab show how to build and boot with your own licensed SDP. Hardware sensing, power loss validation, external notifications and a staff acknowledgement interface remain future work. Follow the repository to reproduce the QEMU workflow. Built by Design Master Solutions, LLC."
+    }
+  ]
+}
