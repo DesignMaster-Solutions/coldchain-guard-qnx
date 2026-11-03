@@ -21,12 +21,16 @@ qcc -Vgcc_nto"$ARCH" -std=c11 -Wall -Wextra -Werror -O2 -D_QNX_SOURCE -I/work/sr
   /work/tests/test_timing_target.c /work/src/core/*.c -o /vm/bin/test_timing_target
 qcc -Vgcc_nto"$ARCH" -std=c11 -Wall -Wextra -Werror -O2 -D_QNX_SOURCE -I/work/src/core -I/work/src/fridged \
   /work/tests/test_resilience_target.c /work/src/core/*.c -o /vm/bin/test_resilience_target
+qcc -Vgcc_nto"$ARCH" -std=c11 -Wall -Wextra -Werror -O2 -D_QNX_SOURCE -I/work/src/core -I/work/src/fridged \
+  /work/tests/test_forecast_target.c /work/src/core/*.c -o /vm/bin/test_forecast_target
 file /vm/bin/test_core /vm/bin/fridged /vm/bin/test_fridge_target
 echo "[perms=555] bin/coldchain_test_core=/vm/bin/test_core" > /vm/local/snippets/system_files.custom
 # SDK binaries are copied only into the local target image, never into git.
 echo "[perms=555] bin/slm=$QNX_TARGET/$ARCH/usr/sbin/slm" >> /vm/local/snippets/system_files.custom
 echo "[perms=555] bin/slmctl=$QNX_TARGET/$ARCH/bin/slmctl" >> /vm/local/snippets/system_files.custom
 cat >> /vm/local/snippets/system_files.custom <<'FILES'
+[perms=555] bin/coldchain_test_forecast=/vm/bin/test_forecast_target
+[perms=444] etc/forecast-scenario.csv=/work/tests/forecast-scenario.csv
 [perms=555] bin/coldchain_test_resilience=/vm/bin/test_resilience_target
 [perms=444] etc/slm-fridged.xml=/work/config/slm-fridged.xml
 [perms=555] bin/coldchain_hog=/vm/bin/hog
@@ -68,6 +72,17 @@ if [ "$m4_rc" = 0 ]; then
     echo "coldchain: m4 rc=0"
 else
     echo "coldchain: m4 FAILED"
+fi
+/system/bin/fridged -s /system/etc/forecast-scenario.csv -p 100 -w 500 -H 30 -g 1 -l /tmp/forecast-audit.bin &
+forecast_pid=$!
+forecast_rc=1
+if waitfor /dev/fridge0 20 && /system/bin/coldchain_test_forecast; then forecast_rc=0; fi
+kill "$forecast_pid"
+wait "$forecast_pid" 2>/dev/null
+if [ "$forecast_rc" = 0 ]; then
+    echo "coldchain: forecast rc=0"
+else
+    echo "coldchain: forecast FAILED"
 fi
 SH
 cd /vm

@@ -16,7 +16,7 @@ build/test_core: tests/test_core.c $(CORE) $(HEADERS) Makefile
 	mkdir -p build
 	$(CC) $(CFLAGS) $(SANITIZERS) -Isrc/core tests/test_core.c $(CORE) -o $@
 
-build/test_fridge: tests/test_fridge.c src/fridged/portable.c src/fridged/portable.h $(CORE) $(HEADERS) Makefile
+build/test_fridge: tests/test_fridge.c src/fridged/portable.c src/fridged/portable.h src/core/forecast.h $(CORE) $(HEADERS) Makefile
 	mkdir -p build
 	$(CC) $(CFLAGS) $(SANITIZERS) -Isrc/core -Isrc/fridged tests/test_fridge.c src/fridged/portable.c $(CORE) -o $@
 

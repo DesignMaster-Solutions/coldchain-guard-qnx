@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "alarm.h"
 
+#define AUDIT_FORECAST 11u /* Advisory category transition, never an alarm. */
 #define AUDIT_DETAIL_SIZE 128
 #define AUDIT_RECORD_SIZE 216
 #define AUDIT_PREV_OFFSET 152

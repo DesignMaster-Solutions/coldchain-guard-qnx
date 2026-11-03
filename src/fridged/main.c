@@ -20,6 +20,9 @@ struct fridge_ocb;
 
 struct fridge_ocb { iofunc_ocb_t base; char text[FRIDGE_TEXT_SIZE]; size_t length; bool snapshot; };
 static alarm_state state;
+static forecast prediction_window;
+static forecast_result prediction;
+static unsigned horizon_s = FRIDGE_FORECAST_HORIZON_DEFAULT;
 static scenario_row rows[SCENARIO_CAPACITY];
 static size_t row_count;
 static FILE *log_file;
@@ -33,6 +36,21 @@ static uint64_t now_ms(void)
     if (clock_gettime(CLOCK_MONOTONIC, &t) == -1) fatal("clock_gettime");
     return (uint64_t)t.tv_sec * 1000 + (uint64_t)t.tv_nsec / 1000000;
 }
+static void evaluate_forecast(uint64_t elapsed)
+{
+    forecast_result next;
+    if (!forecast_eval(&prediction_window,state.config.low_mc,state.config.high_mc,
+                       (uint64_t)horizon_s * 1000,&next)) fatal("forecast_eval");
+    if (fridge_forecast_transition(prediction.trend,next.trend)) {
+        char detail[AUDIT_DETAIL_SIZE];
+        audit_record record;
+        if (fridge_forecast_format(detail,sizeof(detail),&next) < 0 ||
+            !audit_append(&chain,&record,elapsed,AUDIT_FORECAST,
+                          state.temperature_valid ? state.temperature_mc : 0,detail) ||
+            !audit_write(log_file,&record)) fatal("forecast audit");
+    }
+    prediction = next;
+}
 static void sample(void)
 {
     uint64_t elapsed = now_ms() - start_ms;
@@ -43,6 +61,10 @@ static void sample(void)
         audit_record record;
         if (!audit_append_event(&chain,&record,&result.events[i]) || !audit_write(log_file,&record)) fatal("audit append");
     }
+    if (row.valid) {
+        if (!forecast_add(&prediction_window,elapsed,row.temp_mc)) fatal("forecast_add");
+    } else forecast_reset(&prediction_window);
+    evaluate_forecast(elapsed);
     if (!fridge_log_sample(log_file,&chain,elapsed,row.temp_mc,row.valid)) fatal("audit sample/sync");
 }
 static int pulse(message_context_t *ctp, int code, unsigned flags, void *handle)
@@ -61,7 +83,7 @@ static int fridge_read(resmgr_context_t *ctp, io_read_t *msg, struct fridge_ocb 
     if (status != EOK) return status;
     if ((msg->i.xtype & _IO_XTYPE_MASK) != _IO_XTYPE_NONE) return ENOSYS;
     if (!ocb->snapshot) {
-        int n = fridge_format(ocb->text,sizeof(ocb->text),&state);
+        int n = fridge_format(ocb->text,sizeof(ocb->text),&state,&prediction);
         if (n < 0) return EIO;
         ocb->length = (size_t)n; ocb->snapshot = true;
     }
@@ -86,6 +108,9 @@ static int fridge_write(resmgr_context_t *ctp, io_write_t *msg, struct fridge_oc
     char buf[128];
     if (resmgr_msgget(ctp,buf,n,sizeof(msg->i)) != (int)n) return EIO;
     if (!fridge_command(buf,n,&state.config)) return EINVAL;
+    forecast_reset(&prediction_window);
+    evaluate_forecast(now_ms() - start_ms);
+    if (!fridge_log_sync(log_file)) fatal("forecast reset sync");
     ocb->base.attr->flags |= IOFUNC_ATTR_MTIME | IOFUNC_ATTR_CTIME;
     _IO_SET_WRITE_NBYTES(ctp,n);
     return _RESMGR_NPARTS(0);
@@ -93,15 +118,20 @@ static int fridge_write(resmgr_context_t *ctp, io_write_t *msg, struct fridge_oc
 int main(int argc, char **argv)
 {
     const char *scenario = NULL, *log_path = NULL; unsigned period = 1000, priority = FRIDGE_PRIORITY_DEFAULT;
+    unsigned spacing_ms = FRIDGE_FORECAST_SPACING_DEFAULT;
     alarm_config config = alarm_defaults();
     int opt;
-    while ((opt = getopt(argc,argv,"s:p:l:P:g:e:")) != -1) {
+    while ((opt = getopt(argc,argv,"s:p:l:P:g:e:w:H:")) != -1) {
         if (opt == 's') scenario = optarg;
         else if (opt == 'l') log_path = optarg;
         else if (opt == 'p') {
             if (!fridge_uint(optarg,1,3600000,&period)) return EXIT_FAILURE;
         } else if (opt == 'P') {
             if (!fridge_uint(optarg,FRIDGE_PRIORITY_MIN,FRIDGE_PRIORITY_MAX,&priority)) return EXIT_FAILURE;
+        } else if (opt == 'w') {
+            if (!fridge_uint(optarg,1,FRIDGE_FORECAST_SPACING_MAX,&spacing_ms)) return EXIT_FAILURE;
+        } else if (opt == 'H') {
+            if (!fridge_uint(optarg,1,FRIDGE_FORECAST_HORIZON_MAX,&horizon_s)) return EXIT_FAILURE;
         } else if (opt == 'g' || opt == 'e') {
             unsigned seconds;
             if (!fridge_uint(optarg,1,86400,&seconds)) return EXIT_FAILURE;
@@ -110,7 +140,7 @@ int main(int argc, char **argv)
         } else return EXIT_FAILURE;
     }
     if (!scenario || !log_path || optind != argc) {
-        fprintf(stderr,"usage: fridged -s scenario.csv -p period_ms -l audit.bin [-P priority] [-g grace_s] [-e escalation_s]\n"); return EXIT_FAILURE;
+        fprintf(stderr,"usage: fridged -s scenario.csv -p period_ms -l audit.bin [-P priority] [-g grace_s] [-e escalation_s] [-w forecast_spacing_ms] [-H forecast_horizon_s]\n"); return EXIT_FAILURE;
     }
     struct sched_param scheduling = { .sched_priority = (int)priority };
     int error = pthread_setschedparam(pthread_self(),SCHED_FIFO,&scheduling);
@@ -122,6 +152,7 @@ int main(int argc, char **argv)
     if (!log_file) fatal("audit open/verify/resume");
     start_ms = now_ms();
     if (!alarm_init(&state,&config,0)) return EXIT_FAILURE;
+    forecast_init(&prediction_window,spacing_ms);
     sample();
     int chid = ChannelCreate(_NTO_CHF_FIXED_PRIORITY | _NTO_CHF_UNBLOCK | _NTO_CHF_DISCONNECT);
     if (chid == -1) fatal("ChannelCreate");

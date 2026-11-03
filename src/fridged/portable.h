@@ -1,13 +1,18 @@
 #ifndef CCG_PORTABLE_H
 #define CCG_PORTABLE_H
 #include "alarm.h"
+#include "forecast.h"
 #include <stdio.h>
 #define FRIDGE_PRIORITY_DEFAULT 20
 #define FRIDGE_PRIORITY_MIN 1
 #define FRIDGE_PRIORITY_MAX 63
 /* Strict unsigned decimal in an inclusive range; output unchanged on failure. */
 bool fridge_uint(const char *text, unsigned minimum, unsigned maximum, unsigned *out);
-#define FRIDGE_TEXT_SIZE 320
+#define FRIDGE_TEXT_SIZE 448
+#define FRIDGE_FORECAST_SPACING_DEFAULT 60000u
+#define FRIDGE_FORECAST_SPACING_MAX 3600000u
+#define FRIDGE_FORECAST_HORIZON_DEFAULT 1800u
+#define FRIDGE_FORECAST_HORIZON_MAX 86400u
 #define SCENARIO_CAPACITY 4096
 
 typedef struct { uint64_t t_ms; int32_t temp_mc; bool valid; } scenario_row;
@@ -19,5 +24,8 @@ scenario_row scenario_sample(const scenario_row *rows, size_t count, uint64_t t_
  * Invalid input leaves config unchanged; preserves all non-limit settings. */
 bool fridge_command(const char *text, size_t length, alarm_config *config);
 /* Returns length excluding NUL, or -1 on insufficient storage. */
-int fridge_format(char *out, size_t capacity, const alarm_state *state);
+int fridge_format(char *out, size_t capacity, const alarm_state *state, const forecast_result *prediction);
+/* ETA seconds rounded up; -1 explicitly means not applicable. */
+int fridge_forecast_format(char *out, size_t capacity, const forecast_result *prediction);
+bool fridge_forecast_transition(enum forecast_trend before, enum forecast_trend after);
 #endif

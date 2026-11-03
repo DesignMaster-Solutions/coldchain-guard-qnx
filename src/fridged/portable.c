@@ -80,13 +80,34 @@ scenario_row scenario_sample(const scenario_row *rows, size_t count, uint64_t t_
     return row;
 }
 
-int fridge_format(char *out, size_t capacity, const alarm_state *a)
+bool fridge_forecast_transition(enum forecast_trend before, enum forecast_trend after)
 {
+    return before != after &&
+        (before == FORECAST_TO_HIGH || before == FORECAST_TO_LOW ||
+         after == FORECAST_TO_HIGH || after == FORECAST_TO_LOW);
+}
+
+int fridge_forecast_format(char *out, size_t capacity, const forecast_result *f)
+{
+    static const char *names[] = {"unknown", "steady", "to_high", "to_low", "outside"};
+    if (!f || (unsigned)f->trend > FORECAST_OUTSIDE) return -1;
+    int64_t eta = -1;
+    if (f->trend == FORECAST_TO_HIGH || f->trend == FORECAST_TO_LOW)
+        eta = (int64_t)(f->eta_ms / 1000 + (f->eta_ms % 1000 != 0));
+    int n = snprintf(out,capacity,"trend=%s slope_mc_per_min=%" PRId64 " eta_s=%" PRId64,
+                     names[f->trend],f->slope_mc_per_min,eta);
+    return n < 0 || (size_t)n >= capacity ? -1 : n;
+}
+
+int fridge_format(char *out, size_t capacity, const alarm_state *a, const forecast_result *f)
+{
+    char prediction[128];
+    if (fridge_forecast_format(prediction,sizeof(prediction),f) < 0) return -1;
     int n = snprintf(out, capacity,
         "temp_mc=%" PRId32 " valid=%u alarm=%u level=%u low=%" PRId32
-        " high=%" PRId32 " hyst=%" PRId32 " sample_ms=%" PRIu64 " last_valid_ms=%" PRIu64 "\n",
+        " high=%" PRId32 " hyst=%" PRId32 " sample_ms=%" PRIu64 " last_valid_ms=%" PRIu64 " %s\n",
         a->temperature_mc, (unsigned)a->temperature_valid, (unsigned)a->active, a->level,
-        a->config.low_mc, a->config.high_mc, a->config.hysteresis_mc, a->now_ms, a->last_valid_ms);
+        a->config.low_mc, a->config.high_mc, a->config.hysteresis_mc, a->now_ms, a->last_valid_ms, prediction);
     return n < 0 || (size_t)n >= capacity ? -1 : n;
 }
 

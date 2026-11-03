@@ -57,11 +57,37 @@ int main(void)
     }
     alarm_state a; assert(alarm_init(&a,&c,0)); alarm_result r;
     assert(alarm_step(&a,123,5000,true,&r)); char buf[FRIDGE_TEXT_SIZE];
-    assert(fridge_format(buf,sizeof(buf),&a) > 0);
-    assert(!strcmp(buf,"temp_mc=5000 valid=1 alarm=0 level=0 low=2000 high=8000 hyst=500 sample_ms=123 last_valid_ms=123\n"));
-    assert(fridge_format(buf,4,&a) == -1);
+    forecast_result f = {FORECAST_UNKNOWN,0,0};
+    assert(fridge_format(buf,sizeof(buf),&a,&f) > 0);
+    assert(!strcmp(buf,"temp_mc=5000 valid=1 alarm=0 level=0 low=2000 high=8000 hyst=500 sample_ms=123 last_valid_ms=123 trend=unknown slope_mc_per_min=0 eta_s=-1\n"));
+    assert(fridge_format(buf,4,&a,&f) == -1);
     assert(alarm_step(&a,120123,0,false,&r));
-    assert(fridge_format(buf,sizeof(buf),&a)>0 && strstr(buf,"valid=0 alarm=1"));
+    assert(fridge_format(buf,sizeof(buf),&a,&f)>0 && strstr(buf,"valid=0 alarm=1"));
+    const char *names[] = {"unknown","steady","to_high","to_low","outside"};
+    for (unsigned i = 0; i < 5; ++i) {
+        f = (forecast_result){(enum forecast_trend)i,-123,1001};
+        assert(fridge_format(buf,sizeof(buf),&a,&f) > 0);
+        char expected[100];
+        snprintf(expected,sizeof(expected),"trend=%s slope_mc_per_min=-123 eta_s=%d",
+                 names[i],i == 2 || i == 3 ? 2 : -1);
+        assert(strstr(buf,expected));
+        assert(fridge_format(buf,4,&a,&f) == -1);
+        assert(fridge_forecast_format(buf,4,&f) == -1);
+        for (unsigned j = 0; j < 5; ++j)
+            assert(fridge_forecast_transition(i,j) ==
+                   (i != j && (i == 2 || i == 3 || j == 2 || j == 3)));
+    }
+    unsigned value = 99;
+    assert(fridge_uint("60000",1,FRIDGE_FORECAST_SPACING_MAX,&value) && value == 60000);
+    assert(fridge_uint("1800",1,FRIDGE_FORECAST_HORIZON_MAX,&value) && value == 1800);
+    const char *invalid_fc[] = {"0","-1","+1"," 1","1 ","1x","42949672960",""};
+    for (size_t i = 0; i < sizeof(invalid_fc)/sizeof(*invalid_fc); ++i) {
+        assert(!fridge_uint(invalid_fc[i],1,FRIDGE_FORECAST_SPACING_MAX,&value));
+        assert(!fridge_uint(invalid_fc[i],1,FRIDGE_FORECAST_HORIZON_MAX,&value));
+        assert(value == 1800);
+    }
+    assert(!fridge_uint("3600001",1,FRIDGE_FORECAST_SPACING_MAX,&value));
+    assert(!fridge_uint("86401",1,FRIDGE_FORECAST_HORIZON_MAX,&value));
     puts("PASS fridge: option bounds, strict commands, atomic validation, CSV boundaries, invalid sensor and read format");
     return 0;
 }
