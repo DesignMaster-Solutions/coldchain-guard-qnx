@@ -46,6 +46,25 @@ static bool device_hint(void)
     return strstr(text," trend=to_high ") && strstr(text," alarm=0 ") &&
            eta && strtol(eta+7,NULL,10) > 0;
 }
+/* The forecast must judge against the limits in force now, not the startup
+ * ones: at the steady 5000 mc tail, high=4000 makes it outside, defaults steady. */
+static bool current_limits(void)
+{
+    const char *cmd = "low=2000 high=4000 hyst=300";
+    int fd = open("/dev/fridge0",O_WRONLY);
+    if (fd < 0) return false;
+    bool ok = write(fd,cmd,strlen(cmd)) == (ssize_t)strlen(cmd);
+    close(fd);
+    char text[FRIDGE_TEXT_SIZE];
+    uint64_t deadline = now_ms()+8000;
+    while (ok && now_ms() <= deadline) {
+        if (!device_read(text) || !strstr(text," high=4000 ")) return false;
+        if (!strstr(text," trend=unknown "))
+            return strstr(text," trend=outside ") && strstr(text," eta_s=-1");
+        struct timespec pause = {0,20000000}; nanosleep(&pause,NULL);
+    }
+    return false;
+}
 static bool reset_checks(void)
 {
     const char *cmd = "low=2000 high=8001 hyst=300";
@@ -66,7 +85,7 @@ static bool reset_checks(void)
         } else if (gap) {
             if (!strstr(text," trend=unknown ")) return false;
             size_t n;
-            return snapshot(&n) && n > 0;
+            return snapshot(&n) && n > 0 && current_limits();
         }
         struct timespec pause = {0,20000000}; nanosleep(&pause,NULL);
     }
@@ -113,7 +132,7 @@ int main(void)
             if (!observed || high != 1 || outside != 1 || samples <= high+outside) goto fail;
             if (!reset_checks()) goto fail;
             alarm(0);
-            puts("coldchain: device advice precedes alarm, chain, transition-only hints and limit/sensor resets PASS");
+            puts("coldchain: device advice precedes alarm, chain, transition-only hints, limit/sensor resets and current limits PASS");
             return 0;
         }
         if (now_ms() > deadline) goto fail;
