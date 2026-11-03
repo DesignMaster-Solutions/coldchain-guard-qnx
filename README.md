@@ -210,7 +210,7 @@ and preserves the forecast. The daemon stops, restarts the same audit, then
 stops again before full verification: exactly one acknowledgement and one gap.
 The checked M7 serial export becomes `output/m7-audit.bin` and
 `output/m7-report.html`. Every previous gate, including M5 byte equality, remains
-mandatory. See [the real QNX sample report](docs/evidence/sample-report.html) and
+mandatory. See [the real QNX sample report](https://designmaster-solutions.github.io/coldchain-guard-qnx/evidence/sample-report.html) ([HTML source](docs/evidence/sample-report.html)) and
 [the M7 verification evidence](docs/build-plan.md#m7-staff-acknowledgement-and-inspector-report).
 
 ## Predictive pre-alarm

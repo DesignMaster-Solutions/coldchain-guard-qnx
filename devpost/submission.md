@@ -10,7 +10,7 @@ Cold-Chain Guard for QNX 8.0
 
 ## Tagline
 
-A simulated fridge guard on QNX: alarm escalation, crash recovery, and an audit trail that makes missing observations explicit.
+A simulated vaccine-fridge guard on QNX: alarm escalation, staff acknowledgement on the device, crash recovery and an audit report an inspector can read.
 
 ## Organization
 
@@ -32,7 +32,9 @@ Our submission is a working software prototype with a simulated sensor on QEMU. 
 
 Cold-Chain Guard exposes a simulated fridge through `/dev/fridge0`. A POSIX read returns temperature, sensor validity, alarm state and advisory trend. An atomic write changes the temperature limits and hysteresis; invalid commands leave them unchanged.
 
-The portable core tracks excursions, sensor loss, recovery and an escalation ladder. Acknowledgement exists in the core, but there is no deployed staff acknowledgement interface or external notification service. An audit event is not proof that a message reached someone.
+The portable core tracks excursions, sensor loss, recovery and an escalation ladder. Staff acknowledge an active alarm through the same device, `printf 'ack who=Clinic.Team_1\n' > /dev/fridge0`: the name goes into the audit and is synchronized before the write returns, escalation stops, and `alarm=1` stays set until the temperature recovers; a fault that continues re-arms after 60 minutes. A second acknowledgement, an invalid name or an acknowledgement with no active alarm returns `EINVAL` and changes nothing. The name is not authenticated, and there is no external notification service: an audit event is not proof that a message reached someone.
+
+The next morning, `fgctl report` turns a verified audit into one HTML page that a clinic manager or inspector can read on a phone or print. Each excursion gets a card with its start, end, duration, minimum, maximum and who acknowledged it and when, or `not acknowledged`. The report checks the whole chain before printing anything, separates sessions at every restart gap, and states what the prototype does not record: calendar date and time, room temperature, vaccine inventory and actions taken. The [sample report](https://designmaster-solutions.github.io/coldchain-guard-qnx/evidence/sample-report.html) in the repository was generated from the audit exported by a real QNX boot.
 
 An explainable linear forecast offers advice about movement toward a limit. Sensor gaps and accepted limit changes reset its window. It cannot delay, suppress or clear the actual alarm.
 
@@ -72,7 +74,7 @@ QNX resource managers let us present the guard through ordinary file operations,
 
 ## What's next for Cold-Chain Guard
 
-We want to validate a physical temperature probe on supported hardware, anchor the audit to calendar time, then test persistent media and power-loss behavior. A Raspberry Pi 5 and a 1-Wire probe are possible next steps, not completed integrations. External notifications, a staff acknowledgement interface, stalled-process detection and trusted audit anchoring also remain future work. Physical sensing and any clinical use require validation beyond this prototype.
+We want to validate a physical temperature probe on supported hardware, anchor the audit to calendar time, then test persistent media and power-loss behavior. A Raspberry Pi 5 and a 1-Wire probe are possible next steps, not completed integrations. External notifications, authenticated operator identity, stalled-process detection and trusted audit anchoring also remain future work. Physical sensing and any clinical use require validation beyond this prototype.
 
 ## Built with
 
@@ -104,6 +106,7 @@ We use QNX as the running target, not just a build label:
 - `tools/host/build-vm.sh`: `qcc` cross-compilation and `mkqnximage` boot customization. `tools/host/run-vm.sh` checks the QNX console gates and host verification.
 - `tests/test_fridge_target.c`, `tests/test_timing_target.c` and `tests/test_forecast_target.c`: QNX device I/O, pass/fail application deadline checks under lower-priority load and advisory integration.
 - `tools/host/replay-target.c`, `fgctl-replay.sh` and `fgctl-extract.py`: deterministic QNX replay, serial transfer and host comparison.
+- `tests/test_ack_target.c` and `src/fgctl/report.c`: acknowledgement written to `/dev/fridge0` on QNX, frozen ladder, duplicate and invalid names rejected; that boot's exported audit becomes the inspector report.
 
 Our demonstrated platform is QNX 8.0.0 x86_64 in QEMU with synthetic input. This is not a QNX performance evaluation or a hardware/medical validation. We are entering the Best Use of QNX-specific Technologies bonus with this implementation. If there is no separate bonus explanation field, retain this evidence in the project description.
 
@@ -141,7 +144,8 @@ The authorized Representative must complete account-specific identity/team field
 | Verified resume, explicit gaps, SLM restart | `src/fridged/storage.c`; `config/slm-fridged.xml`; `tests/test_storage.c`; `tests/test_resilience_target.c` |
 | Replay/serial integrity and tail limitation | `tools/host/replay-target.c`; `tools/host/fgctl-extract.py`; `tests/test_serial.py`; README M5 |
 | Rejected mutations and QEMU acceptance limits | `docs/build-plan.md`, M1–M5 and predictive pre-alarm sections |
+| Staff acknowledgement and inspector report | `src/fridged/portable.c`; `src/fgctl/report.c`; `tests/test_ack_target.c`; `tests/test_fgctl.c`; `docs/evidence/sample-report.html`; build plan M7 |
 | Target footage used in video | `video/live-session.py`; `video/script.md` |
 | Codelab scope and reproducibility | Companion repository `README.md`, `src/hello.c`, `scripts/build-image.sh`, `scripts/boot.sh` |
 
-Judging alignment: technological implementation is evidenced by native QNX integration and target checks; design by the scenario-to-audit workflow and explicit error states; potential impact by the clinic-fridge problem with hardware validation still pending; innovation by advisory forecasting kept separate from alarms and explicit uncertainty on recovery. No trained AI model or clinical benefit is claimed. These are the four equally weighted criteria in the public rules, not predicted scores.
+Judging alignment: technological implementation is evidenced by native QNX integration and target checks; design by the alarm, acknowledgement and inspector-report workflow and explicit error states; potential impact by the clinic-fridge problem with hardware validation still pending; innovation by advisory forecasting kept separate from alarms and explicit uncertainty on recovery. No trained AI model or clinical benefit is claimed. These are the four equally weighted criteria in the public rules, not predicted scores.
