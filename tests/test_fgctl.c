@@ -58,6 +58,9 @@ static void test_report(void)
     const char *card_end = strstr(card,"</article>");
     const char *card_ack = strstr(card,"Acknowledged by &lt;script&gt;bad&lt;/script&gt;");
     assert(card_end && card_ack && card_ack < card_end);
+    /* The card states when staff responded: the ack record's own time, not the excursion start. */
+    const char *ack_line = "Acknowledged by &lt;script&gt;bad&lt;/script&gt; at 0:00:03.</p>";
+    assert(!strncmp(card_ack,ack_line,strlen(ack_line)));
     const char *next_card = strstr(card_end,"<article class=episode>");
     assert(next_card && strstr(next_card,"not acknowledged"));
     assert(!strstr(next_card,"Acknowledged by"));
