@@ -21,6 +21,15 @@ static size_t snapshot(const char *path, unsigned char *out)
     size_t n = fread(out,1,2048,f); assert(!ferror(f));
     assert(!fclose(f)); return n;
 }
+/* The whole gap contract, not just its type: a gap never claims a valid
+ * interval or a temperature (the QNX M4 observer requires the same). */
+static bool gap_ok(const unsigned char *r)
+{
+    static const unsigned char zero[4];
+    const char *d = (const char *)r + 24;
+    return r[19] == AUDIT_GAP && !memcmp(r+20,zero,4) && memchr(d,0,AUDIT_DETAIL_SIZE) &&
+           strstr(d,"interval=unknown ") && strstr(d,"valid=0 ") && strstr(d,"state=reset");
+}
 int main(void)
 {
     /* TMPDIR can keep all artifacts within an explicitly allowed proof folder. */
@@ -48,8 +57,7 @@ int main(void)
     size_t n = snapshot(path,after), bad;
     assert(n == 864 && !memcmp(before,after,initial));
     assert(audit_verify(after,n,&bad,NULL) == AUDIT_OK);
-    assert(after[432+19] == AUDIT_GAP && after[648+19] == AUDIT_SAMPLE);
-    assert(strstr((char *)after+432+24,"interval=unknown"));
+    assert(gap_ok(after+432) && after[648+19] == AUDIT_SAMPLE);
     assert(strstr((char *)after+432+24,"discarded_bytes=0"));
     assert(!unlink(path));
     /* Every possible partial record length is discarded, explicitly, only
@@ -60,7 +68,7 @@ int main(void)
         assert(fwrite(before,1,tail,f) == tail); assert(!fclose(f));
         f = fridge_log_open(path,&chain); assert(f && chain.seq == 3); assert(!fclose(f));
         n = snapshot(path,after); assert(n == 648 && !memcmp(before,after,initial));
-        assert(audit_verify(after,n,&bad,NULL) == AUDIT_OK);
+        assert(audit_verify(after,n,&bad,NULL) == AUDIT_OK && gap_ok(after+432));
         char detail[64]; snprintf(detail,sizeof(detail),"discarded_bytes=%zu ",tail);
         assert(strstr((char *)after+432+24,detail));
         assert(!unlink(path));
@@ -77,7 +85,7 @@ int main(void)
     /* An existing empty log is still a restart, not evidence of no outage. */
     f = fopen(path,"wb"); assert(f); assert(!fclose(f));
     f = fridge_log_open(path,&chain); assert(f && chain.seq == 1); assert(!fclose(f));
-    n = snapshot(path,after); assert(n == 216 && after[19] == AUDIT_GAP);
+    n = snapshot(path,after); assert(n == 216 && gap_ok(after));
     assert(audit_verify(after,n,&bad,NULL) == AUDIT_OK); assert(!unlink(path));
     puts("PASS storage: verified resume, unknown gap, partial tails, corruption refusal, exclusive writer, samples");
     return 0;
