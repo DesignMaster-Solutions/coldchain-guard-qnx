@@ -4,6 +4,8 @@ A vaccine-fridge guard for small clinics, built to run on QNX 8.0. It watches a 
 
 **Status (November 2, 2026):** M0–M5 done. The portable C11 core and fridge protocol pass host tests with AddressSanitizer and UndefinedBehaviorSanitizer. Cross-compiled with `qcc`, the core tests and `/dev/fridge0` integration pass on a QNX 8.0.0 x86_64 target in QEMU: reads, limit changes, invalid-write rejection and audit verification. Separate host and target mutations are detected. M3 checks the application alarm and first escalation deadlines under lower-priority CPU load; an inverted-priority target mutation fails. M4 verifies SLM crash restart, a new process serving the device, and a verified audit chain with exactly one unknown gap between samples. Host corruption-bypass and target no-restart mutations fail. The predictive pre-alarm is integrated with device reads, transition-only audit hints and its own host/target red-green checks. The M5 host tool validates scenarios, replays them on QNX, checks the serial export checksum and verifies the audit chain on the host. Built for the QNX Global Hackathon (Robotics & Medical); see [docs/build-plan.md](docs/build-plan.md) for contracts and verification limits.
 
+**Demo (under 3 minutes, real QNX console in QEMU):** https://youtu.be/zKRIykuno2c
+
 ## Structure
 
 - `src/core/alarm.h/.c`: caller-owned alarm state, actions and audit events; no allocation or I/O.
