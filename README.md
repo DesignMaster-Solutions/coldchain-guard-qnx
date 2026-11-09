@@ -46,7 +46,7 @@ Why QNX, as demonstrated on the target here: fixed priorities keep the sampler a
 
 **Target:** QNX OS 8.0.0, x86_64 under QEMU. **Toolchain:** QNX SDP 8.0, `qcc -Vgcc_ntox86_64` (GCC 12.2), `mkqnximage`.
 
-No QNX license? You can still check the real target output: [docs/evidence/qnx-boot-console.log](docs/evidence/qnx-boot-console.log) is the literal serial console of the boot in the demo video, and the host verifies the audit it exported:
+No QNX license? You can still check the real target output: [docs/evidence/qnx-boot-console.log](docs/evidence/qnx-boot-console.log) is the literal serial console of the boot in the demo video, and [docs/evidence/qnx-acceptance-boot-39ee461.log](docs/evidence/qnx-acceptance-boot-39ee461.log) is the unattended acceptance boot of commit 39ee461 (November 9, 2026; all seven target markers at rc=0, including the inclusive 2 °C / 8 °C limit test). The host verifies the audit the demo boot exported:
 
 ```sh
 make build/fgctl build/replay_target
