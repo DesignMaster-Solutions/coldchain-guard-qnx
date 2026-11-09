@@ -162,6 +162,25 @@ static void test_hysteresis(void)
     puts("PASS hysteresis: upper/lower oscillation and inclusive recovery boundaries");
 }
 
+static void test_limits(void)
+{
+    /* 2 C and 8 C are inside the range: a fridge held at a limit is not an excursion. */
+    alarm_config c = alarm_defaults();
+    const int32_t inside[] = { c.low_mc, c.high_mc };
+    const int32_t outside[] = { c.low_mc - 1, c.high_mc + 1 };
+    for (size_t i = 0; i < 2; ++i) {
+        alarm_state a = fresh();
+        alarm_result r = step(&a, 0, inside[i], true);
+        assert(!a.outside && !a.excursion && !event(&r, ALARM_EXCURSION));
+        r = step(&a, 60 * MINUTE, inside[i], true);
+        assert(!a.active && r.actions == 0);
+        a = fresh();
+        r = step(&a, 0, outside[i], true);
+        assert(a.outside && a.excursion && event(&r, ALARM_EXCURSION));
+    }
+    puts("PASS limits: a reading at 2 C or 8 C is in range, one millidegree beyond is an excursion");
+}
+
 static void test_sensor(void)
 {
     alarm_state a = fresh();
@@ -301,7 +320,7 @@ static void test_audit(void)
 int main(void)
 {
     test_sha(); test_door(); test_ack(); test_power_and_recovery();
-    test_hysteresis(); test_sensor(); test_edges(); test_audit();
+    test_hysteresis(); test_limits(); test_sensor(); test_edges(); test_audit();
     puts("All core tests passed.");
     return 0;
 }
